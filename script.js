@@ -210,6 +210,11 @@
   };
 
   const STORAGE_KEY = "stella-tarot-history-v1";
+  const RECORD_TYPES = {
+    tarot: { label: "塔罗", icon: "✦", className: "record-tarot" },
+    liuren: { label: "小六壬", icon: "掌", className: "record-liuren" },
+    liuyao: { label: "六爻", icon: "爻", className: "record-liuyao" }
+  };
 
   const state = {
     question: "",
@@ -224,7 +229,9 @@
     summary: [],
     saved: false,
     busy: false,
-    toastTimer: null
+    toastTimer: null,
+    currentView: "welcome",
+    historyFilter: "all"
   };
 
   const elements = {
@@ -278,6 +285,7 @@
     historyOpen: document.getElementById("history-open"),
     historyDialog: document.getElementById("history-dialog"),
     historyClose: document.getElementById("history-close"),
+    historyFilters: document.getElementById("history-filters"),
     historyList: document.getElementById("history-list"),
     historyClear: document.getElementById("history-clear"),
     historyDetailDialog: document.getElementById("history-detail-dialog"),
@@ -312,6 +320,7 @@
     Object.keys(elements.views).forEach(function (key) {
       elements.views[key].hidden = key !== name;
     });
+    state.currentView = name;
 
     const stepForView = {
       question: "question",
@@ -816,10 +825,20 @@
     }
   }
 
+  function normalizeRecordType(record) {
+    return record && RECORD_TYPES[record.type] ? record.type : "tarot";
+  }
+
+  function createRecordId() {
+    const now = new Date();
+    return now.getTime().toString(36) + "-" + Math.random().toString(36).slice(2, 7);
+  }
+
   function makeRecord() {
     const now = new Date();
     return {
-      id: now.getTime().toString(36) + "-" + Math.random().toString(36).slice(2, 7),
+      id: createRecordId(),
+      type: "tarot",
       createdAt: now.toISOString(),
       question: state.question,
       questionType: state.questionType,
@@ -836,21 +855,35 @@
     };
   }
 
+  function addHistoryRecord(record) {
+    if (!record || !record.question || !Array.isArray(record.summary)) {
+      return false;
+    }
+    const normalizedRecord = Object.assign({}, record, {
+      id: record.id || createRecordId(),
+      type: normalizeRecordType(record),
+      createdAt: record.createdAt || new Date().toISOString()
+    });
+    const history = [normalizedRecord].concat(getHistory()).slice(0, 10);
+    if (!saveHistory(history)) {
+      return false;
+    }
+    renderHistory();
+    return true;
+  }
+
   function saveCurrentReading() {
     if (!state.summary.length || state.saved) {
       return;
     }
 
-    const record = makeRecord();
-    const history = [record].concat(getHistory()).slice(0, 10);
-    if (!saveHistory(history)) {
+    if (!addHistoryRecord(makeRecord())) {
       return;
     }
 
     state.saved = true;
     elements.saveReading.disabled = true;
     elements.saveReading.textContent = "已保存到历史记录";
-    renderHistory();
     showToast("本次占卜已保存，仅保存在当前浏览器。");
   }
 
@@ -869,23 +902,44 @@
   }
 
   function renderHistory() {
-    const history = getHistory();
+    const allHistory = getHistory();
+    const history = state.historyFilter === "all"
+      ? allHistory
+      : allHistory.filter(function (record) {
+        return normalizeRecordType(record) === state.historyFilter;
+      });
+
+    if (elements.historyFilters) {
+      elements.historyFilters.querySelectorAll("[data-history-filter]").forEach(function (button) {
+        const active = button.dataset.historyFilter === state.historyFilter;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+    }
+
+    elements.historyClear.disabled = !allHistory.length;
     if (!history.length) {
-      elements.historyList.innerHTML = '<div class="history-empty">还没有保存过占卜记录。</div>';
-      elements.historyClear.disabled = true;
+      elements.historyList.innerHTML = '<div class="history-empty">' +
+        (allHistory.length ? "当前筛选下没有记录。" : "还没有保存过占卜记录。") +
+        "</div>";
       return;
     }
 
-    elements.historyClear.disabled = false;
     elements.historyList.innerHTML = history.map(function (record) {
-      const type = QUESTION_TYPES[record.questionType] || QUESTION_TYPES.general;
-      const spread = SPREADS[record.spreadId] || { name: record.spreadName || "未知牌阵" };
+      const recordType = normalizeRecordType(record);
+      const typeMeta = RECORD_TYPES[recordType];
+      const questionType = QUESTION_TYPES[record.questionType] || QUESTION_TYPES.general;
+      const spread = SPREADS[record.spreadId] || { name: record.spreadName || "传统占课" };
+      const detail = recordType === "tarot"
+        ? questionType.label + " · " + spread.name + " · " + (Array.isArray(record.cards) ? record.cards.length : 0) + " 张牌"
+        : (record.questionTypeLabel || questionType.label) + " · " + (record.resultName || record.spreadName || "结果已保存");
       return [
-        '<article class="history-item">',
+        '<article class="history-item ' + typeMeta.className + '">',
         "<div>",
         '<time datetime="' + escapeHtml(record.createdAt) + '">' + escapeHtml(formatDate(record.createdAt)) + "</time>",
         "<h3>" + escapeHtml(record.question) + "</h3>",
-        "<p>" + escapeHtml(type.label + " · " + spread.name + " · " + record.cards.length + " 张牌") + "</p>",
+        '<p><span class="history-type-badge">' + typeMeta.icon + " " + typeMeta.label + "</span>" +
+          escapeHtml(detail) + "</p>",
         "</div>",
         '<div class="history-item-actions">',
         '<button class="small-action" type="button" data-history-action="view" data-id="' + escapeHtml(record.id) + '">查看</button>',
@@ -935,10 +989,22 @@
       return;
     }
 
-    const spread = SPREADS[record.spreadId] || SPREADS.single;
-    const items = recordToDrawItems(record);
     const summary = Array.isArray(record.summary) ? record.summary : [];
     const type = QUESTION_TYPES[record.questionType] || QUESTION_TYPES.general;
+    const recordType = normalizeRecordType(record);
+
+    if (recordType !== "tarot" && window.ExtraDivination && typeof window.ExtraDivination.renderHistoryDetail === "function") {
+      window.ExtraDivination.renderHistoryDetail(record, elements.historyDetailContent);
+      if (typeof elements.historyDetailDialog.showModal === "function") {
+        elements.historyDetailDialog.showModal();
+      } else {
+        elements.historyDetailDialog.setAttribute("open", "");
+      }
+      return;
+    }
+
+    const spread = SPREADS[record.spreadId] || SPREADS.single;
+    const items = Array.isArray(record.cards) ? recordToDrawItems(record) : [];
 
     elements.historyDetailContent.innerHTML = [
       '<div class="history-detail-body">',
@@ -1083,6 +1149,17 @@
     elements.historyDetailClose.addEventListener("click", function () { closeDialog(elements.historyDetailDialog); });
     elements.historyClear.addEventListener("click", clearHistory);
 
+    if (elements.historyFilters) {
+      elements.historyFilters.addEventListener("click", function (event) {
+        const button = event.target.closest("[data-history-filter]");
+        if (!button) {
+          return;
+        }
+        state.historyFilter = button.dataset.historyFilter;
+        renderHistory();
+      });
+    }
+
     elements.historyList.addEventListener("click", function (event) {
       const button = event.target.closest("[data-history-action]");
       if (!button) {
@@ -1122,6 +1199,30 @@
       }
     }
   }
+
+  window.TarotApp = {
+    showView: showView,
+    hideTarotViews: function () {
+      Object.keys(elements.views).forEach(function (key) {
+        elements.views[key].hidden = true;
+      });
+      elements.stepper.hidden = true;
+    },
+    restoreTarotView: function () {
+      showView(state.currentView || "welcome");
+    },
+    showToast: showToast,
+    getHistory: getHistory,
+    saveHistory: saveHistory,
+    addHistoryRecord: addHistoryRecord,
+    normalizeRecordType: normalizeRecordType,
+    renderHistory: renderHistory,
+    openHistory: openHistory,
+    closeDialog: closeDialog,
+    formatDate: formatDate,
+    escapeHtml: escapeHtml,
+    createRecordId: createRecordId
+  };
 
   init();
 })();

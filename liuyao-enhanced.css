@@ -1,0 +1,306 @@
+.liuyao-rule-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 24px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 18px;
+  background: rgba(10, 12, 27, 0.62);
+}
+
+.coin-rule {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 52px;
+  border-bottom: 1px solid var(--line-soft);
+  padding-bottom: 9px;
+}
+
+.coin-rule:nth-last-child(-n + 2) {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.coin-rule b {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--gold-bright);
+  font-family: var(--font-display);
+  font-size: 15px;
+}
+
+.coin-rule span,
+.coin-rule strong {
+  display: block;
+}
+
+.coin-rule strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.coin-rule span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.liuyao-cast-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
+  padding: 17px 0;
+}
+
+.liuyao-cast-summary h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 500;
+}
+
+.liuyao-cast-summary p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.liuyao-count-large {
+  color: var(--gold-bright);
+  font-family: var(--font-display);
+  font-size: 52px;
+  line-height: 1;
+}
+
+.liuyao-count-large small {
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+
+.coin-result-row {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--line-soft);
+  padding: 8px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.coin-result-row:last-child {
+  border-bottom: 0;
+}
+
+.coin-result-row b {
+  min-width: 34px;
+  color: var(--gold-bright);
+  font-weight: 600;
+}
+
+.coin-result-row .mini-coins {
+  display: flex;
+  gap: 4px;
+}
+
+.mini-coin {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #1a1d33;
+  color: var(--gold-bright);
+  font-size: 10px;
+}
+
+.mini-coin.is-char {
+  border-color: rgba(148, 163, 202, 0.4);
+  color: var(--muted-strong);
+}
+
+.liuyao-result-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 28px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
+  padding: 30px 0;
+}
+
+.liuyao-result-hero h3 {
+  margin: 7px 0 6px;
+  font-family: var(--font-display);
+  font-size: 39px;
+  font-weight: 500;
+}
+
+.liuyao-result-hero p {
+  margin: 0;
+  color: var(--muted-strong);
+}
+
+.hexagram-symbol-large {
+  color: var(--gold-bright);
+  font-family: serif;
+  font-size: 92px;
+  line-height: 1;
+  text-align: center;
+}
+
+.liuyao-two-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.hexagram-reading-card {
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 20px;
+  background: rgba(14, 17, 34, 0.72);
+}
+
+.hexagram-reading-card > small {
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.hexagram-reading-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0 14px;
+}
+
+.hexagram-reading-head .hexagram-visual {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.hexagram-reading-head h4 {
+  margin: 0 0 3px;
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 500;
+}
+
+.hexagram-reading-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hexagram-reading-card > p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 13px;
+}
+
+.domain-reading-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.domain-reading-item {
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  padding: 13px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.domain-reading-item b {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--gold-bright);
+  font-size: 12px;
+}
+
+.domain-reading-item p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.movement-line-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.movement-line-list span {
+  border: 1px solid rgba(225, 141, 120, 0.38);
+  border-radius: 100px;
+  padding: 4px 10px;
+  color: #f0b1a0;
+  font-size: 11px;
+}
+
+.static-hexagram-note {
+  margin-top: 12px;
+  border-left: 2px solid var(--success);
+  padding: 4px 0 4px 13px;
+  color: var(--muted-strong);
+}
+
+.liuyao-disclaimer {
+  margin-top: 24px;
+  color: #a8a5b5;
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .liuyao-rule-panel,
+  .liuyao-two-grid,
+  .domain-reading-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .liuyao-result-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .hexagram-symbol-large {
+    font-size: 72px;
+    text-align: left;
+  }
+}
+
+@media (max-width: 430px) {
+  .liuyao-cast-summary {
+    align-items: flex-start;
+  }
+
+  .liuyao-count-large {
+    font-size: 42px;
+  }
+
+  .coin-result-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .hexagram-reading-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
