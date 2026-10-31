@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080a16">
+  <title>星夜塔罗 | 自我反思占卜</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="star-field" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <button class="brand" id="brand-home" type="button" aria-label="返回欢迎页">
+      <span class="brand-sigil" aria-hidden="true">✦</span>
+      <span>
+        <strong>星夜塔罗</strong>
+        <small>在安静中照见自己</small>
+      </span>
+    </button>
+    <button class="ghost-button" id="history-open" type="button">
+      <span aria-hidden="true">◷</span>
+      历史记录
+    </button>
+  </header>
+
+  <nav class="stepper" id="stepper" aria-label="占卜进度" hidden>
+    <div class="step-item" data-step="question"><span>1</span><b>提问</b></div>
+    <div class="step-item" data-step="spread"><span>2</span><b>牌阵</b></div>
+    <div class="step-item" data-step="ritual"><span>3</span><b>洗牌</b></div>
+    <div class="step-item" data-step="draw"><span>4</span><b>抽牌</b></div>
+    <div class="step-item" data-step="reading"><span>5</span><b>解读</b></div>
+  </nav>
+
+  <main class="app-shell">
+    <section class="view welcome-view" id="view-welcome" aria-labelledby="welcome-title">
+      <div class="welcome-copy">
+        <p class="eyebrow">TAROT · 78 CARDS</p>
+        <h1 id="welcome-title">把问题交给夜色，<br>把答案带回心里。</h1>
+        <p class="lead">选择问题与牌阵，完成洗牌、切牌和抽牌。塔罗不会替你决定，它只是提供另一种观察当下的角度。</p>
+        <button class="primary-button large-button" id="start-reading" type="button">开始占卜 <span aria-hidden="true">→</span></button>
+        <p class="welcome-note">完整 78 张牌 · 正逆位随机 · 记录仅保存在本机</p>
+      </div>
+
+      <div class="welcome-oracle" aria-hidden="true">
+        <div class="oracle-ring">
+          <span class="oracle-star">✦</span>
+        </div>
+        <div class="preview-deck">
+          <div class="preview-card back-one"></div>
+          <div class="preview-card back-two"></div>
+          <div class="preview-card back-three">
+            <span>☾</span>
+            <b>STELLA</b>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-question" aria-labelledby="question-title" hidden>
+      <div class="section-heading">
+        <p class="eyebrow">STEP 01 · 提问</p>
+        <h2 id="question-title">此刻，你最想看清什么？</h2>
+        <p>尽量写下具体、开放的问题。与其问“会不会”，也可以问“我可以如何理解和行动”。</p>
+      </div>
+
+      <div class="form-block">
+        <label for="question-input">你的问题</label>
+        <textarea id="question-input" rows="4" maxlength="160" placeholder="例如：我该如何理解这段关系近期出现的变化？"></textarea>
+        <div class="field-meta">
+          <span class="field-error" id="question-error" role="alert"></span>
+          <span><b id="question-count">0</b>/160</span>
+        </div>
+      </div>
+
+      <fieldset class="choice-group">
+        <legend>问题类型</legend>
+        <div class="choice-grid" id="question-types"></div>
+      </fieldset>
+
+      <div class="example-block">
+        <div class="subheading">
+          <h3>示例问题</h3>
+          <span>点击即可填入</span>
+        </div>
+        <div class="example-list" id="question-examples"></div>
+      </div>
+
+      <div class="view-actions">
+        <button class="text-button" id="question-back" type="button">返回</button>
+        <button class="primary-button" id="question-next" type="button">选择牌阵 <span aria-hidden="true">→</span></button>
+      </div>
+    </section>
+
+    <section class="view" id="view-spread" aria-labelledby="spread-title" hidden>
+      <div class="section-heading">
+        <p class="eyebrow">STEP 02 · 牌阵</p>
+        <h2 id="spread-title">选择一个展开问题的结构</h2>
+        <p id="spread-question-preview"></p>
+      </div>
+      <div class="spread-grid" id="spread-grid"></div>
+      <div class="view-actions">
+        <button class="text-button" id="spread-back" type="button">返回</button>
+        <button class="primary-button" id="spread-next" type="button">进入洗牌 <span aria-hidden="true">→</span></button>
+      </div>
+    </section>
+
+    <section class="view" id="view-ritual" aria-labelledby="ritual-title" hidden>
+      <div class="section-heading centered">
+        <p class="eyebrow">STEP 03 · 洗牌与切牌</p>
+        <h2 id="ritual-title">让问题暂时安静下来</h2>
+        <p id="ritual-status" aria-live="polite">点击洗牌，想象你把注意力慢慢收回到这个问题上。</p>
+      </div>
+
+      <div class="ritual-stage">
+        <div class="deck-stack" id="deck-stack" aria-hidden="true">
+          <div class="deck-card depth-1"></div>
+          <div class="deck-card depth-2"></div>
+          <div class="deck-card depth-3"></div>
+          <div class="deck-card depth-4"></div>
+          <div class="deck-card deck-top">
+            <span class="deck-corner">✦</span>
+            <span class="deck-moon">☾</span>
+            <span class="deck-name">STELLA TAROT</span>
+            <span class="deck-corner bottom">✦</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ritual-controls">
+        <button class="primary-button" id="shuffle-button" type="button">洗牌</button>
+        <button class="secondary-button" id="cut-button" type="button" disabled>切牌</button>
+        <button class="text-button" id="ritual-back" type="button">返回牌阵</button>
+      </div>
+      <button class="primary-button wide-button" id="to-draw-button" type="button" disabled>完成仪式，开始抽牌 <span aria-hidden="true">→</span></button>
+    </section>
+
+    <section class="view" id="view-draw" aria-labelledby="draw-title" hidden>
+      <div class="draw-heading">
+        <div class="section-heading">
+          <p class="eyebrow" id="draw-step-label">STEP 04 · 抽牌</p>
+          <h2 id="draw-title">从牌堆中抽取属于此刻的牌</h2>
+          <p id="draw-status" aria-live="polite">已抽 0 / 1 张</p>
+        </div>
+        <div class="progress-orbit" id="draw-progress" aria-hidden="true">
+          <span id="draw-progress-number">0</span>
+          <small id="draw-progress-total">/ 1</small>
+        </div>
+      </div>
+
+      <div class="draw-toolbar">
+        <button class="deck-pile" id="draw-deck" type="button" aria-label="点击牌堆抽取下一张">
+          <span class="pile-card p1"></span>
+          <span class="pile-card p2"></span>
+          <span class="pile-card p3">
+            <b>✦</b>
+            <small id="deck-remaining">78</small>
+          </span>
+        </button>
+        <div class="draw-copy">
+          <b id="draw-action-title">点击牌堆或下方按钮</b>
+          <p id="draw-action-copy">每次抽取都会从完整牌组中移除该牌，本次占卜不会重复。</p>
+        </div>
+        <button class="primary-button" id="draw-next" type="button">抽取下一张</button>
+      </div>
+
+      <div class="draw-grid" id="draw-grid" aria-live="polite"></div>
+
+      <div class="draw-finish" id="draw-finish" hidden>
+        <p>牌已抽取完成。翻牌时请先留意你的第一感受。</p>
+        <button class="primary-button" id="start-reveal" type="button">开始逐张翻牌</button>
+        <button class="primary-button" id="reading-cta" type="button" hidden>查看完整解读 <span aria-hidden="true">→</span></button>
+      </div>
+    </section>
+
+    <section class="view reading-view" id="view-reading" aria-labelledby="reading-title" hidden>
+      <div class="reading-header">
+        <div>
+          <p class="eyebrow">STEP 05 · 解读</p>
+          <h2 id="reading-title">牌面给出的观察角度</h2>
+          <p id="reading-question"></p>
+        </div>
+        <div class="reading-seal" aria-hidden="true">✦</div>
+      </div>
+
+      <article class="summary-panel">
+        <div class="summary-label">综合解读</div>
+        <div id="reading-summary"></div>
+      </article>
+
+      <div class="reading-card-list" id="reading-cards"></div>
+
+      <div class="reading-actions">
+        <button class="secondary-button" id="save-reading" type="button">保存本次记录</button>
+        <button class="primary-button" id="restart-reading" type="button">重新占卜</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>塔罗仅供娱乐与自我反思，不构成医疗、法律、投资等专业建议。重要决定请结合真实信息并咨询相应专业人士。</p>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <dialog class="modal history-modal" id="history-dialog" aria-labelledby="history-title">
+    <div class="modal-header">
+      <div>
+        <p class="eyebrow">LOCAL ARCHIVE</p>
+        <h2 id="history-title">最近 10 次占卜</h2>
+      </div>
+      <button class="icon-button" id="history-close" type="button" aria-label="关闭历史记录">×</button>
+    </div>
+    <div class="history-list" id="history-list"></div>
+    <button class="danger-text-button" id="history-clear" type="button">清空全部记录</button>
+  </dialog>
+
+  <dialog class="modal detail-modal" id="history-detail-dialog" aria-labelledby="history-detail-title">
+    <div class="modal-header">
+      <div>
+        <p class="eyebrow">READING RECORD</p>
+        <h2 id="history-detail-title">占卜详情</h2>
+      </div>
+      <button class="icon-button" id="history-detail-close" type="button" aria-label="关闭详情">×</button>
+    </div>
+    <div id="history-detail-content"></div>
+  </dialog>
+
+  <script src="tarot-data.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
