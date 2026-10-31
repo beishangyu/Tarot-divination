@@ -231,7 +231,15 @@
     busy: false,
     toastTimer: null,
     currentView: "welcome",
-    historyFilter: "all"
+    historyFilter: "all",
+    cutStage: 0,
+    selectedCutPile: null,
+    fanDeck: [],
+    selectedFanIndexes: [],
+    drawing: false,
+    skipAnimations: false,
+    animationTimer: null,
+    animationFinish: null
   };
 
   const elements = {
@@ -259,9 +267,12 @@
     spreadNext: document.getElementById("spread-next"),
     ritualStatus: document.getElementById("ritual-status"),
     deckStack: document.getElementById("deck-stack"),
+    cutPiles: document.getElementById("cut-piles"),
     shuffleButton: document.getElementById("shuffle-button"),
     cutButton: document.getElementById("cut-button"),
+    mergeDeckButton: document.getElementById("merge-deck-button"),
     ritualBack: document.getElementById("ritual-back"),
+    ritualSkip: document.getElementById("ritual-skip"),
     toDrawButton: document.getElementById("to-draw-button"),
     drawStepLabel: document.getElementById("draw-step-label"),
     drawTitle: document.getElementById("draw-title"),
@@ -273,6 +284,11 @@
     drawActionTitle: document.getElementById("draw-action-title"),
     drawActionCopy: document.getElementById("draw-action-copy"),
     drawNext: document.getElementById("draw-next"),
+    drawSkip: document.getElementById("draw-skip"),
+    fanArea: document.getElementById("fan-area"),
+    fanZone: document.getElementById("fan-zone"),
+    fanDeck: document.getElementById("fan-deck"),
+    slotProgress: document.getElementById("slot-progress"),
     drawGrid: document.getElementById("draw-grid"),
     drawFinish: document.getElementById("draw-finish"),
     startReveal: document.getElementById("start-reveal"),
@@ -305,6 +321,65 @@
 
   function reducedMotion() {
     return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  let tarotAudioContext = null;
+
+  function getAudioContext() {
+    if (reducedMotion()) {
+      return null;
+    }
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      return null;
+    }
+    if (!tarotAudioContext) {
+      tarotAudioContext = new AudioContextClass();
+    }
+    if (tarotAudioContext.state === "suspended") {
+      tarotAudioContext.resume().catch(function () {});
+    }
+    return tarotAudioContext;
+  }
+
+  function playPaperNoise(duration, volume, frequency) {
+    const context = getAudioContext();
+    if (!context) {
+      return;
+    }
+    const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
+    const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
+    const channel = buffer.getChannelData(0);
+    for (let index = 0; index < sampleCount; index += 1) {
+      const envelope = 1 - index / sampleCount;
+      channel[index] = (Math.random() * 2 - 1) * envelope;
+    }
+    const source = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    filter.type = "bandpass";
+    filter.frequency.value = frequency;
+    filter.Q.value = 0.8;
+    gain.gain.setValueAtTime(volume, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+    source.connect(filter).connect(gain).connect(context.destination);
+    source.start();
+    source.stop(context.currentTime + duration);
+  }
+
+  function playShuffleSound() {
+    playPaperNoise(0.16, 0.035, 1800);
+    window.setTimeout(function () { playPaperNoise(0.13, 0.028, 2300); }, 170);
+    window.setTimeout(function () { playPaperNoise(0.18, 0.032, 1550); }, 380);
+  }
+
+  function playDrawSound() {
+    playPaperNoise(0.18, 0.04, 2100);
+  }
+
+  function playFlipSound() {
+    playPaperNoise(0.11, 0.035, 2600);
   }
 
   function showToast(message) {
@@ -434,13 +509,61 @@
   }
 
   function resetDeckVisual() {
-    elements.deckStack.classList.remove("is-shuffling", "is-cutting");
+    if (state.animationTimer) {
+      window.clearTimeout(state.animationTimer);
+    }
+    state.animationTimer = null;
+    state.animationFinish = null;
+    elements.deckStack.classList.remove("is-shuffling", "is-cutting", "is-split", "is-merging");
+    if (elements.cutPiles) {
+      elements.cutPiles.hidden = true;
+      elements.cutPiles.classList.remove("is-merging");
+      elements.cutPiles.querySelectorAll(".cut-pile").forEach(function (pile) {
+        pile.classList.remove("is-selected");
+      });
+    }
+    state.selectedCutPile = null;
+    state.cutStage = 0;
     void elements.deckStack.offsetWidth;
   }
 
   function updateRitualControls() {
-    elements.cutButton.disabled = state.busy || !state.shuffled;
+    elements.cutButton.disabled = state.busy || !state.shuffled || state.cutStage >= 1;
+    elements.mergeDeckButton.disabled = state.busy || state.cutStage !== 1;
     elements.toDrawButton.disabled = state.busy || !state.shuffled || !state.cut;
+  }
+
+  function scheduleAnimation(duration, finish) {
+    if (state.animationTimer) {
+      window.clearTimeout(state.animationTimer);
+    }
+    state.animationFinish = finish;
+    const effectiveDuration = reducedMotion() || state.skipAnimations ? 80 : duration;
+    state.animationTimer = window.setTimeout(function () {
+      state.animationTimer = null;
+      const callback = state.animationFinish;
+      state.animationFinish = null;
+      if (callback) {
+        callback();
+      }
+    }, effectiveDuration);
+  }
+
+  function finishCurrentAnimation() {
+    if (!state.animationFinish) {
+      state.skipAnimations = true;
+      tarotApi.showToast("后续仪式动画将快速完成。");
+      return;
+    }
+    if (state.animationTimer) {
+      window.clearTimeout(state.animationTimer);
+      state.animationTimer = null;
+    }
+    const callback = state.animationFinish;
+    state.animationFinish = null;
+    if (callback) {
+      callback();
+    }
   }
 
   function shuffleDeck() {
@@ -454,20 +577,22 @@
     state.revealMode = false;
     state.shuffled = false;
     state.cut = false;
+    state.cutStage = 0;
+    state.selectedCutPile = null;
     state.saved = false;
     resetDeckVisual();
     elements.deckStack.classList.add("is-shuffling");
-    elements.ritualStatus.textContent = "牌正在洗匀，也让问题暂时离开急于求答案的惯性。";
+    elements.ritualStatus.textContent = "交错的牌堆正在搓洗，让问题暂时离开急于求答案的惯性。";
+    playShuffleSound();
     updateRitualControls();
 
-    const duration = reducedMotion() ? 80 : 980;
-    window.setTimeout(function () {
+    scheduleAnimation(920, function () {
       elements.deckStack.classList.remove("is-shuffling");
       state.shuffled = true;
       state.busy = false;
-      elements.ritualStatus.textContent = "牌已洗匀。请切牌，让节奏从准备进入选择。";
+      elements.ritualStatus.textContent = "牌已洗匀。请切牌，把牌堆分成三叠，再选择一叠合回原处。";
       updateRitualControls();
-    }, duration);
+    });
   }
 
   function cutDeck() {
@@ -477,19 +602,68 @@
 
     state.busy = true;
     state.cut = false;
+    state.cutStage = 0;
     resetDeckVisual();
+    state.busy = true;
     elements.deckStack.classList.add("is-cutting");
-    elements.ritualStatus.textContent = "切牌完成中，牌的次序已经固定。";
+    elements.ritualStatus.textContent = "牌堆正在分成三叠，动作结束后由你选择合牌。";
+    playPaperNoise(0.25, 0.035, 1300);
     updateRitualControls();
 
-    const duration = reducedMotion() ? 80 : 780;
-    window.setTimeout(function () {
+    scheduleAnimation(760, function () {
       elements.deckStack.classList.remove("is-cutting");
-      state.cut = true;
+      elements.deckStack.classList.add("is-split");
+      elements.cutPiles.hidden = false;
+      state.cutStage = 1;
       state.busy = false;
-      elements.ritualStatus.textContent = "仪式完成。现在可以从 78 张牌中抽取本次所需牌数。";
+      elements.ritualStatus.textContent = "牌已分成三叠。点击其中一叠，再按“合牌”完成切牌。";
       updateRitualControls();
-    }, duration);
+    });
+  }
+
+  function selectCutPile(index) {
+    if (state.cutStage !== 1 || state.busy) {
+      return;
+    }
+    state.selectedCutPile = index;
+    elements.cutPiles.querySelectorAll(".cut-pile").forEach(function (pile) {
+      pile.classList.toggle("is-selected", Number(pile.dataset.pile) === index);
+    });
+    elements.mergeDeckButton.disabled = false;
+    elements.ritualStatus.textContent = "你选择了" +
+      ["上叠", "中叠", "下叠"][index] + "。点击“合牌”完成切牌仪式。";
+  }
+
+  function mergeDeck() {
+    if (state.busy || state.cutStage !== 1) {
+      return;
+    }
+    state.busy = true;
+    const selectedPile = state.selectedCutPile === null ? 1 : state.selectedCutPile;
+    selectCutPile(selectedPile);
+    elements.cutPiles.classList.add("is-merging");
+    elements.ritualStatus.textContent = "三叠牌正在依次合回，牌的次序即将固定。";
+    playPaperNoise(0.3, 0.035, 1700);
+    updateRitualControls();
+    scheduleAnimation(620, function () {
+      elements.cutPiles.classList.remove("is-merging");
+      elements.cutPiles.hidden = true;
+      elements.deckStack.classList.remove("is-split");
+      state.cut = true;
+      state.cutStage = 2;
+      state.busy = false;
+      elements.ritualStatus.textContent = "切牌完成。牌序已经固定，可以展开扇形牌阵盲抽。";
+      updateRitualControls();
+    });
+  }
+
+  function skipRitualAnimation() {
+    if (state.animationTimer) {
+      finishCurrentAnimation();
+    } else {
+      state.skipAnimations = true;
+      tarotApi.showToast("后续仪式动画将快速完成。");
+    }
   }
 
   function startDrawing() {
@@ -499,42 +673,182 @@
     }
 
     state.drawn = [];
+    state.fanDeck = state.deck.slice();
+    state.selectedFanIndexes = [];
     state.revealMode = false;
     state.saved = false;
+    state.drawing = false;
     elements.drawStepLabel.textContent = "STEP 04 · 抽牌";
-    elements.drawTitle.textContent = "从牌堆中抽取属于此刻的牌";
-    elements.drawActionTitle.textContent = "点击牌堆或下方按钮";
-    elements.drawActionCopy.textContent = "每次抽取都会从完整牌组中移除该牌，本次占卜不会重复。";
+    elements.drawTitle.textContent = "从扇形牌阵中凭直觉选择";
+    elements.drawActionTitle.textContent = "点击任意牌背";
+    elements.drawActionCopy.textContent = "牌不会凭空出现。请凭第一直觉选择，直到填满所有牌位槽。";
+    elements.fanArea.hidden = false;
     elements.startReveal.hidden = false;
     elements.startReveal.disabled = true;
     elements.readingCta.hidden = true;
     elements.drawFinish.hidden = true;
+    renderFan();
     renderDrawView();
     showView("draw");
   }
 
-  function drawNextCard() {
+  function fanPosition(index, total) {
+    const progress = total <= 1 ? 0.5 : index / (total - 1);
+    const compact = window.innerWidth <= 760;
+    const angle = -30 + progress * 60;
+    const spreadWidth = compact ? 1700 : 1350;
+    const spreadX = -(spreadWidth / 2) + progress * spreadWidth;
+    const arcY = Math.sin(progress * Math.PI) * 8 - 4;
+    return {
+      x: spreadX + (index - (total - 1) / 2) * (compact ? 1.8 : 1.5),
+      y: arcY,
+      angle: angle,
+      z: 100 + Math.round(progress * 100)
+    };
+  }
+
+  function renderFan() {
+    if (!elements.fanDeck) {
+      return;
+    }
+    const total = state.fanDeck.length;
+    elements.fanDeck.innerHTML = state.fanDeck.map(function (card, index) {
+      const position = fanPosition(index, total);
+      const selected = state.selectedFanIndexes.indexOf(index) > -1;
+      return [
+        '<button class="fan-card' + (selected ? " is-selected is-drawn" : "") + '"',
+        ' type="button" data-fan-index="' + index + '"',
+        ' aria-label="第 ' + (index + 1) + ' 张牌背"',
+        ' style="--fan-x:' + position.x.toFixed(1) + 'px;--fan-y:' + position.y.toFixed(1) +
+          'px;--fan-angle:' + position.angle.toFixed(2) + 'deg;z-index:' + position.z + '">',
+        '<span class="card-face card-back"><span class="card-back-center" aria-hidden="true">✦</span></span>',
+        "</button>"
+      ].join("");
+    }).join("");
+    if (elements.fanZone) {
+      window.requestAnimationFrame(function () {
+        elements.fanZone.scrollLeft = Math.max(0, (elements.fanZone.scrollWidth - elements.fanZone.clientWidth) / 2);
+      });
+    }
+  }
+
+  function emptySlotMarkup(index) {
+    const position = state.spread.positions[index];
+    return [
+      '<div class="card-slot is-empty" data-slot="' + index + '">',
+      '<div class="empty-slot" aria-hidden="true">✦</div>',
+      '<div class="slot-label"><b>' + escapeHtml(position.name) + '</b><span class="reveal-name">等待抽取</span></div>',
+      "</div>"
+    ].join("");
+  }
+
+  function renderDrawView() {
     const total = state.spread.count;
-    if (state.drawn.length >= total || !state.deck.length) {
+    const drawn = state.drawn.length;
+    elements.drawProgressTotal.textContent = "/ " + total;
+    elements.drawProgressNumber.textContent = String(drawn);
+    if (elements.slotProgress) {
+      elements.slotProgress.textContent = "已入场 " + drawn + " / " + total;
+    }
+    elements.drawGrid.dataset.count = String(total);
+    elements.drawGrid.innerHTML = state.spread.positions.map(function (_, index) {
+      return state.drawn[index] ? drawCardMarkup(state.drawn[index], index) : emptySlotMarkup(index);
+    }).join("");
+
+    if (!state.revealMode) {
+      elements.drawStatus.textContent = "已抽 " + drawn + " / " + total + " 张";
+    }
+
+    const completed = drawn === total && state.drawn.every(function (item) { return item.arrived; });
+    elements.startReveal.disabled = !completed;
+    elements.drawFinish.hidden = !completed;
+    elements.drawNext && (elements.drawNext.disabled = completed);
+    if (completed) {
+      elements.drawActionTitle.textContent = "牌位槽已经填满";
+      elements.drawActionCopy.textContent = "请点击“开始逐张翻牌”，按自己的节奏揭晓每一张牌。";
+      elements.drawStatus.textContent = "已抽 " + total + " / " + total + " 张，可以开始翻牌。";
+    } else {
+      elements.drawActionTitle.textContent = drawn ? "继续凭直觉选择" : "点击任意牌背";
+      elements.drawActionCopy.textContent = "剩余 " + (state.fanDeck.length - drawn) + " 张牌背，点击即可抽入牌位。";
+    }
+    if (elements.deckRemaining) {
+      elements.deckRemaining.textContent = String(Math.max(0, state.fanDeck.length - drawn));
+    }
+  }
+
+  function animateCardToSlot(fanIndex, slotIndex) {
+    if (!elements.fanDeck || !elements.drawGrid || reducedMotion() || state.skipAnimations) {
+      return Promise.resolve();
+    }
+    const source = elements.fanDeck.querySelector('[data-fan-index="' + fanIndex + '"]');
+    const target = elements.drawGrid.querySelector('[data-slot="' + slotIndex + '"] .tarot-card');
+    if (!source || !target) {
+      return Promise.resolve();
+    }
+
+    const sourceRect = source.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const ghost = source.cloneNode(true);
+    ghost.className = "fan-card flying-card";
+    ghost.removeAttribute("data-fan-index");
+    ghost.style.left = sourceRect.left + "px";
+    ghost.style.top = sourceRect.top + "px";
+    ghost.style.width = sourceRect.width + "px";
+    ghost.style.height = sourceRect.height + "px";
+    ghost.style.transform = "none";
+    document.body.appendChild(ghost);
+
+    return new Promise(function (resolve) {
+      window.requestAnimationFrame(function () {
+        ghost.style.transform = "translate(" +
+          (targetRect.left - sourceRect.left) + "px," +
+          (targetRect.top - sourceRect.top) + "px) scale(" +
+          (targetRect.width / sourceRect.width) + ")";
+        window.setTimeout(function () {
+          ghost.remove();
+          resolve();
+        }, reducedMotion() ? 20 : 520);
+      });
+    });
+  }
+
+  function selectFanCard(fanIndex) {
+    if (state.drawing || state.selectedFanIndexes.indexOf(fanIndex) > -1 ||
+        state.drawn.length >= state.spread.count || !state.fanDeck[fanIndex]) {
       return;
     }
 
-    const card = state.deck.pop();
-    state.drawn.push({
-      card: card,
+    state.drawing = true;
+    playDrawSound();
+    const item = {
+      card: state.fanDeck[fanIndex],
       reversed: Math.random() < 0.5,
       revealed: false,
-      positionIndex: state.drawn.length
-    });
+      arrived: false,
+      positionIndex: state.drawn.length,
+      fanIndex: fanIndex
+    };
+    state.drawn.push(item);
+    state.selectedFanIndexes.push(fanIndex);
+    const source = elements.fanDeck.querySelector('[data-fan-index="' + fanIndex + '"]');
+    if (source) {
+      source.classList.add("is-selected", "is-drawn");
+      source.disabled = true;
+    }
     renderDrawView();
+    animateCardToSlot(fanIndex, item.positionIndex).then(function () {
+      item.arrived = true;
+      state.drawing = false;
+      renderDrawView();
+    });
+  }
 
-    const completed = state.drawn.length === total;
-    elements.startReveal.disabled = !completed;
-    elements.drawFinish.hidden = !completed;
-    if (completed) {
-      elements.drawActionTitle.textContent = "本次所需牌数已经完成";
-      elements.drawActionCopy.textContent = "点击下方按钮，再逐张翻开牌面并记录第一感受。";
-      elements.drawStatus.textContent = "已抽 " + total + " / " + total + " 张，可以开始翻牌。";
+  function drawNextCard() {
+    const nextIndex = state.fanDeck.findIndex(function (_, index) {
+      return state.selectedFanIndexes.indexOf(index) === -1;
+    });
+    if (nextIndex > -1) {
+      selectFanCard(nextIndex);
     }
   }
 
@@ -566,14 +880,16 @@
   function drawCardMarkup(item, index) {
     const position = state.spread.positions[index];
     const canFlip = state.revealMode && !item.revealed;
+    const arrived = item.arrived !== false;
     const orientation = item.reversed ? "逆位" : "正位";
     const label = item.revealed
       ? cardFrontLabel(item.card, orientation)
       : "第 " + (index + 1) + " 张牌，等待翻开";
 
     return [
-      '<div class="card-slot" data-slot="' + index + '">',
-      '<button class="tarot-card' + (item.revealed ? " flipped" : "") + '" type="button"',
+      '<div class="card-slot' + (arrived ? " is-arrived" : " is-arriving") + '" data-slot="' + index + '">',
+      '<button class="tarot-card' + (item.revealed ? " flipped" : "") +
+        (arrived ? " is-arrived" : "") + '" type="button"',
       ' data-card-index="' + index + '" aria-label="' + escapeHtml(label) + '"',
       ' aria-pressed="' + (item.revealed ? "true" : "false") + '"',
       canFlip ? "" : " disabled",
@@ -590,27 +906,10 @@
     return card.name + "，" + orientation + "，位于" + card.arcana;
   }
 
-  function renderDrawView() {
-    const total = state.spread.count;
-    const drawn = state.drawn.length;
-    elements.drawProgressTotal.textContent = "/ " + total;
-    elements.drawProgressNumber.textContent = String(drawn);
-    elements.deckRemaining.textContent = String(state.deck.length);
-    elements.drawGrid.dataset.count = String(total);
-    elements.drawGrid.innerHTML = state.drawn.map(drawCardMarkup).join("");
-
-    if (!state.revealMode) {
-      elements.drawStatus.textContent = "已抽 " + drawn + " / " + total + " 张";
-    }
-
-    const completed = drawn === total;
-    elements.drawDeck.disabled = completed;
-    elements.drawNext.disabled = completed;
-    elements.drawNext.textContent = completed ? "已完成抽牌" : "抽取下一张";
-  }
-
   function startRevealMode() {
-    if (state.drawn.length !== state.spread.count) {
+    if (state.drawing || state.drawn.length !== state.spread.count ||
+        !state.drawn.every(function (item) { return item.arrived; })) {
+      showToast("请先完成全部盲抽。");
       return;
     }
 
@@ -620,42 +919,53 @@
     elements.drawStepLabel.textContent = "STEP 04 · 翻牌";
     elements.drawTitle.textContent = "逐张翻牌，先听见自己的第一反应";
     elements.drawActionTitle.textContent = "点击任意牌背翻牌";
-    elements.drawActionCopy.textContent = "翻牌没有固定顺序。先留意你看到牌名前的感觉，再阅读牌义。";
+    elements.drawActionCopy.textContent = "点击牌位上的牌背。短暂停顿后才会揭晓，先留意自己的第一感受。";
     elements.drawStatus.textContent = "已翻开 0 / " + state.spread.count + " 张";
+    elements.fanArea.classList.add("is-complete");
     renderDrawView();
   }
 
   function flipCard(index) {
     const item = state.drawn[index];
-    if (!state.revealMode || !item || item.revealed) {
+    if (!state.revealMode || !item || item.revealed || item.revealing) {
       return;
     }
 
-    item.revealed = true;
     const button = elements.drawGrid.querySelector('[data-card-index="' + index + '"]');
     const slot = elements.drawGrid.querySelector('[data-slot="' + index + '"]');
     if (button) {
-      button.classList.add("flipped");
-      button.setAttribute("aria-pressed", "true");
       button.disabled = true;
-      button.setAttribute("aria-label", cardFrontLabel(item.card, item.reversed ? "逆位" : "正位"));
+      button.classList.add("is-revealing");
     }
-    if (slot) {
-      const revealName = slot.querySelector(".reveal-name");
-      if (revealName) {
-        revealName.textContent = item.card.name + " · " + (item.reversed ? "逆位" : "正位");
+    item.revealing = true;
+    playFlipSound();
+
+    window.setTimeout(function () {
+      item.revealed = true;
+      item.revealing = false;
+      if (button) {
+        button.classList.remove("is-revealing");
+        button.classList.add("flipped", "is-revealed");
+        button.setAttribute("aria-pressed", "true");
+        button.setAttribute("aria-label", cardFrontLabel(item.card, item.reversed ? "逆位" : "正位"));
       }
-    }
+      if (slot) {
+        const revealName = slot.querySelector(".reveal-name");
+        if (revealName) {
+          revealName.textContent = item.card.name + " · " + (item.reversed ? "逆位" : "正位");
+        }
+      }
 
-    const revealedCount = state.drawn.filter(function (draw) { return draw.revealed; }).length;
-    elements.drawStatus.textContent = "已翻开 " + revealedCount + " / " + state.spread.count + " 张";
+      const revealedCount = state.drawn.filter(function (draw) { return draw.revealed; }).length;
+      elements.drawStatus.textContent = "已翻开 " + revealedCount + " / " + state.spread.count + " 张";
 
-    if (revealedCount === state.spread.count) {
-      elements.readingCta.hidden = false;
-      elements.drawActionTitle.textContent = "所有牌已经翻开";
-      elements.drawActionCopy.textContent = "完整解读会综合问题类型、牌阵位置、正逆位与关键词。";
-      elements.readingCta.focus();
-    }
+      if (revealedCount === state.spread.count) {
+        elements.readingCta.hidden = false;
+        elements.drawActionTitle.textContent = "所有牌已经翻开";
+        elements.drawActionCopy.textContent = "完整解读会综合问题类型、牌阵位置、正逆位与关键词。";
+        elements.readingCta.focus();
+      }
+    }, reducedMotion() ? 80 : 320);
   }
 
   function miniCardMarkup(card, reversed) {
@@ -785,12 +1095,32 @@
     state.summary = [];
     state.saved = false;
     state.busy = false;
+    state.cutStage = 0;
+    state.selectedCutPile = null;
+    state.fanDeck = [];
+    state.selectedFanIndexes = [];
+    state.drawing = false;
+    state.skipAnimations = false;
 
     elements.questionInput.value = "";
     elements.questionCount.textContent = "0";
     elements.questionError.textContent = "";
     elements.ritualStatus.textContent = "点击洗牌，想象你把注意力慢慢收回到这个问题上。";
     elements.drawGrid.innerHTML = "";
+    if (elements.fanDeck) {
+      elements.fanDeck.innerHTML = "";
+    }
+    if (elements.fanArea) {
+      elements.fanArea.hidden = true;
+      elements.fanArea.classList.remove("is-complete");
+    }
+    if (elements.slotProgress) {
+      elements.slotProgress.textContent = "已入场 0 / 1";
+    }
+    if (elements.deckRemaining) {
+      elements.deckRemaining.textContent = "78";
+    }
+    elements.mergeDeckButton.disabled = true;
     elements.drawFinish.hidden = true;
     elements.readingCta.hidden = true;
     elements.startReveal.hidden = false;
@@ -1129,9 +1459,35 @@
 
     elements.shuffleButton.addEventListener("click", shuffleDeck);
     elements.cutButton.addEventListener("click", cutDeck);
+    elements.mergeDeckButton.addEventListener("click", mergeDeck);
+    elements.ritualSkip.addEventListener("click", skipRitualAnimation);
+    elements.cutPiles.addEventListener("click", function (event) {
+      const pile = event.target.closest("[data-pile]");
+      if (pile) {
+        selectCutPile(Number(pile.dataset.pile));
+      }
+    });
     elements.toDrawButton.addEventListener("click", startDrawing);
-    elements.drawDeck.addEventListener("click", drawNextCard);
-    elements.drawNext.addEventListener("click", drawNextCard);
+    if (elements.drawDeck) {
+      elements.drawDeck.addEventListener("click", drawNextCard);
+    }
+    if (elements.drawNext) {
+      elements.drawNext.addEventListener("click", drawNextCard);
+    }
+    if (elements.drawSkip) {
+      elements.drawSkip.addEventListener("click", function () {
+        state.skipAnimations = true;
+        showToast("后续抽牌动画将快速完成。");
+      });
+    }
+    if (elements.fanDeck) {
+      elements.fanDeck.addEventListener("click", function (event) {
+        const card = event.target.closest("[data-fan-index]");
+        if (card) {
+          selectFanCard(Number(card.dataset.fanIndex));
+        }
+      });
+    }
     elements.startReveal.addEventListener("click", startRevealMode);
     elements.readingCta.addEventListener("click", showReading);
     elements.restartReading.addEventListener("click", resetReading);

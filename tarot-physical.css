@@ -1,0 +1,455 @@
+/* Incremental physical interaction layer for the tarot ritual and draw flow. */
+
+.deck-area {
+  position: relative;
+  display: grid;
+  width: min(560px, 100%);
+  min-height: 390px;
+  place-items: center;
+  perspective: 1200px;
+}
+
+.deck-stack {
+  filter: drop-shadow(0 28px 28px rgba(0, 0, 0, 0.32));
+  transition: opacity 220ms ease, transform 400ms ease;
+}
+
+.deck-thickness {
+  position: absolute;
+  z-index: -2;
+  inset: 3px -7px -8px 7px;
+  border: 1px solid rgba(215, 180, 106, 0.28);
+  border-radius: 9px;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.08) 0 1px,
+      rgba(215, 180, 106, 0.1) 1px 3px,
+      rgba(7, 9, 20, 0.74) 3px 4px
+    ),
+    #0e1124;
+  box-shadow:
+    1px 2px 0 #0c0f20,
+    2px 4px 0 #11152b,
+    3px 6px 0 #0b0e1e,
+    4px 8px 0 #101328,
+    5px 10px 0 #090c19,
+    7px 14px 0 #0d1021,
+    9px 18px 0 #080a17,
+    12px 24px 28px rgba(0, 0, 0, 0.42);
+}
+
+.deck-card {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04),
+    0 8px 0 #0b0e1e,
+    0 11px 0 #11142a,
+    0 22px 44px rgba(0, 0, 0, 0.42);
+}
+
+.deck-stack.is-shuffling .depth-1,
+.deck-stack.is-shuffling .depth-3 {
+  animation: riffle-left 880ms cubic-bezier(0.2, 0.72, 0.28, 1) both;
+}
+
+.deck-stack.is-shuffling .depth-2,
+.deck-stack.is-shuffling .depth-4 {
+  animation: riffle-right 920ms cubic-bezier(0.2, 0.72, 0.28, 1) both;
+}
+
+.deck-stack.is-shuffling .deck-top {
+  animation: riffle-jitter 840ms 90ms ease both;
+}
+
+@keyframes riffle-left {
+  0% { transform: translate(0, 0) rotate(0); }
+  30% { transform: translate(-62px, -6px) rotate(-5deg); }
+  50% { transform: translate(-42px, -16px) rotate(-3deg); }
+  72% { transform: translate(-18px, 3px) rotate(-1deg); }
+  100% { transform: translate(0, 0) rotate(0); }
+}
+
+@keyframes riffle-right {
+  0% { transform: translate(0, 0) rotate(0); }
+  34% { transform: translate(65px, -4px) rotate(5deg); }
+  54% { transform: translate(45px, -14px) rotate(3deg); }
+  76% { transform: translate(20px, 4px) rotate(1deg); }
+  100% { transform: translate(0, 0) rotate(0); }
+}
+
+@keyframes riffle-jitter {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  18% { transform: translate(-3px, 1px) rotate(-1deg); }
+  36% { transform: translate(3px, -2px) rotate(0.8deg); }
+  54% { transform: translate(-2px, 2px) rotate(-0.5deg); }
+  72% { transform: translate(2px, -1px) rotate(0.4deg); }
+}
+
+.deck-stack.is-split {
+  opacity: 0.18;
+  transform: translateY(18px) scale(0.94);
+}
+
+.cut-piles {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 3vw, 28px);
+  animation: cut-piles-in 620ms cubic-bezier(0.2, 0.72, 0.28, 1) both;
+}
+
+.cut-pile {
+  position: relative;
+  display: grid;
+  width: clamp(86px, 18vw, 128px);
+  min-height: 186px;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--muted-strong);
+  cursor: pointer;
+  perspective: 900px;
+}
+
+.cut-pile-stack {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: clamp(72px, 14vw, 102px);
+  height: clamp(126px, 24vw, 174px);
+  border: 1px solid rgba(215, 180, 106, 0.48);
+  border-radius: 7px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 4px, rgba(215, 180, 106, 0.07) 4px 6px),
+    #11142a;
+  box-shadow:
+    3px 4px 0 #0b0e1e,
+    6px 8px 0 #11152b,
+    9px 12px 0 #0a0d1c,
+    0 18px 28px rgba(0, 0, 0, 0.34);
+  transform: translateX(-50%);
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.cut-pile-stack::after {
+  content: "✦";
+  position: absolute;
+  inset: 8px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(215, 180, 106, 0.22);
+  border-radius: 4px;
+  color: var(--gold);
+}
+
+.cut-pile b {
+  position: absolute;
+  bottom: 2px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.cut-pile:hover .cut-pile-stack,
+.cut-pile:focus-visible .cut-pile-stack {
+  transform: translateX(-50%) translateY(-10px) rotate(2deg);
+  border-color: var(--gold-bright);
+  box-shadow:
+    3px 4px 0 #0b0e1e,
+    6px 8px 0 #11152b,
+    9px 12px 0 #0a0d1c,
+    0 22px 34px rgba(0, 0, 0, 0.4),
+    0 0 28px rgba(215, 180, 106, 0.13);
+}
+
+.cut-pile.is-selected .cut-pile-stack {
+  border-color: var(--gold-bright);
+  box-shadow:
+    3px 4px 0 #0b0e1e,
+    6px 8px 0 #11152b,
+    9px 12px 0 #0a0d1c,
+    0 0 32px rgba(215, 180, 106, 0.22);
+}
+
+@keyframes cut-piles-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.84);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ritual-utility {
+  display: flex;
+  justify-content: center;
+  min-height: 34px;
+  margin-top: 8px;
+}
+
+.ritual-skip-active .deck-stack {
+  animation-duration: 80ms !important;
+}
+
+.cut-piles.is-merging .cut-pile {
+  animation: cut-merge 560ms cubic-bezier(0.2, 0.72, 0.28, 1) both;
+}
+
+@keyframes cut-merge {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  55% { opacity: 0.86; transform: translateY(-18px) scale(0.92); }
+  100% { opacity: 0; transform: translateY(-8px) scale(0.72); }
+}
+
+.draw-toolbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  margin-bottom: 8px;
+}
+
+.draw-toolbar .draw-copy {
+  grid-column: auto;
+}
+
+.fan-area.is-complete {
+  opacity: 0.46;
+  pointer-events: none;
+}
+
+/* Fan of unselected cards. */
+.fan-area {
+  margin: 12px 0 34px;
+  animation: fan-area-in 480ms ease both;
+}
+
+.fan-heading,
+.slot-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.fan-heading > span,
+.slot-heading > span {
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.fan-heading b {
+  color: var(--muted-strong);
+}
+
+.fan-zone {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 38px 20px 28px;
+  scrollbar-color: rgba(215, 180, 106, 0.35) transparent;
+  scrollbar-width: thin;
+  touch-action: pan-x;
+}
+
+.fan-deck {
+  position: relative;
+  width: max(1500px, calc(100% - 30px));
+  height: 164px;
+  margin: 0 auto;
+  transform-style: preserve-3d;
+}
+
+.fan-card {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 66px;
+  height: 108px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  transform: translateX(calc(-50% + var(--fan-x))) translateY(var(--fan-y)) rotate(var(--fan-angle));
+  transform-origin: 50% 118%;
+  transition: transform 220ms cubic-bezier(0.2, 0.72, 0.28, 1), opacity 220ms ease, filter 220ms ease;
+  will-change: transform;
+}
+
+.fan-card .card-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+}
+
+.fan-card .card-back-center {
+  width: 38px;
+  height: 38px;
+  font-size: 16px;
+}
+
+.fan-card:hover,
+.fan-card:focus-visible,
+.fan-card:active {
+  z-index: 500 !important;
+  transform: translateX(calc(-50% + var(--fan-x))) translateY(calc(var(--fan-y) - 22px)) rotate(var(--fan-angle)) scale(1.08);
+  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.46)) drop-shadow(0 0 12px rgba(215, 180, 106, 0.32));
+}
+
+.fan-card:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 4px;
+}
+
+.fan-card.is-drawn {
+  opacity: 0.12;
+  pointer-events: none;
+  filter: grayscale(0.8);
+}
+
+.fan-card.is-drawn .card-back::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.fan-card.is-selected {
+  opacity: 0;
+}
+
+.flying-card {
+  position: fixed !important;
+  z-index: 1000 !important;
+  bottom: auto !important;
+  margin: 0;
+  pointer-events: none;
+  transition: transform 520ms cubic-bezier(0.2, 0.74, 0.22, 1), opacity 520ms ease !important;
+  will-change: transform;
+}
+
+.slot-stage {
+  padding-top: 8px;
+}
+
+.card-slot.is-empty .empty-slot {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 0.61;
+  place-items: center;
+  border: 1px dashed rgba(215, 180, 106, 0.25);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.018);
+  color: rgba(215, 180, 106, 0.48);
+  font-size: 22px;
+  box-shadow: inset 0 0 28px rgba(215, 180, 106, 0.025);
+}
+
+.card-slot.is-arrived .tarot-card {
+  animation: slot-arrival 360ms ease both;
+}
+
+.card-slot.is-arriving .tarot-card {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes slot-arrival {
+  from { transform: translateY(-8px) scale(0.92); opacity: 0.35; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Reveal pause and gold flash. */
+.tarot-card.is-revealing .card-back::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 237, 178, 0.6) 50%, transparent 70%);
+  animation: reveal-glow 420ms ease both;
+  pointer-events: none;
+}
+
+.tarot-card.is-revealed .card-front {
+  animation: revealed-gold-flash 500ms ease both;
+}
+
+@keyframes reveal-glow {
+  from { transform: translateX(-100%); opacity: 0; }
+  45% { opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+@keyframes revealed-gold-flash {
+  0% { box-shadow: 0 0 0 rgba(242, 217, 158, 0); }
+  38% { box-shadow: 0 0 34px rgba(242, 217, 158, 0.65); }
+  100% { box-shadow: 0 16px 38px rgba(0, 0, 0, 0.3); }
+}
+
+@media (max-width: 760px) {
+  .deck-area {
+    min-height: 330px;
+  }
+
+  .cut-pile {
+    min-height: 160px;
+  }
+
+  .fan-zone {
+    margin-right: -12px;
+    margin-left: -12px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .fan-deck {
+    width: 1880px;
+  }
+
+  .fan-card {
+    width: 60px;
+    height: 98px;
+  }
+
+  .draw-toolbar .draw-copy p {
+    max-width: 250px;
+  }
+}
+
+@media (max-width: 430px) {
+  .ritual-controls {
+    flex-wrap: wrap;
+  }
+
+  .fan-deck {
+    width: 1960px;
+    height: 150px;
+  }
+
+  .fan-card {
+    width: 56px;
+    height: 92px;
+  }
+
+  .draw-grid[data-count="3"],
+  .draw-grid[data-count="5"],
+  .draw-grid[data-count="6"] {
+    --cols: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fan-card,
+  .flying-card,
+  .cut-piles,
+  .tarot-card.is-revealed .card-front,
+  .tarot-card.is-revealing .card-back::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

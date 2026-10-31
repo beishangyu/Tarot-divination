@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#080a16">
   <title>星夜三占 | 塔罗 · 小六壬 · 六爻</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="tarot-physical.css">
   <link rel="stylesheet" href="extra-divination.css">
   <link rel="stylesheet" href="liuren-enhanced.css">
   <link rel="stylesheet" href="liuyao-enhanced.css">
@@ -141,16 +142,30 @@
       </div>
 
       <div class="ritual-stage">
-        <div class="deck-stack" id="deck-stack" aria-hidden="true">
-          <div class="deck-card depth-1"></div>
-          <div class="deck-card depth-2"></div>
-          <div class="deck-card depth-3"></div>
-          <div class="deck-card depth-4"></div>
-          <div class="deck-card deck-top">
-            <span class="deck-corner">✦</span>
-            <span class="deck-moon">☾</span>
-            <span class="deck-name">STELLA TAROT</span>
-            <span class="deck-corner bottom">✦</span>
+        <div class="deck-area">
+          <div class="deck-stack" id="deck-stack" aria-hidden="true">
+            <div class="deck-thickness" aria-hidden="true"></div>
+            <div class="deck-card depth-1"></div>
+            <div class="deck-card depth-2"></div>
+            <div class="deck-card depth-3"></div>
+            <div class="deck-card depth-4"></div>
+            <div class="deck-card deck-top">
+              <span class="deck-corner">✦</span>
+              <span class="deck-moon">☾</span>
+              <span class="deck-name">STELLA TAROT</span>
+              <span class="deck-corner bottom">✦</span>
+            </div>
+          </div>
+          <div class="cut-piles" id="cut-piles" hidden>
+            <button class="cut-pile" type="button" data-pile="0" aria-label="选择上叠牌">
+              <span class="cut-pile-stack"></span><b>上叠</b>
+            </button>
+            <button class="cut-pile" type="button" data-pile="1" aria-label="选择中叠牌">
+              <span class="cut-pile-stack"></span><b>中叠</b>
+            </button>
+            <button class="cut-pile" type="button" data-pile="2" aria-label="选择下叠牌">
+              <span class="cut-pile-stack"></span><b>下叠</b>
+            </button>
           </div>
         </div>
       </div>
@@ -158,8 +173,10 @@
       <div class="ritual-controls">
         <button class="primary-button" id="shuffle-button" type="button">洗牌</button>
         <button class="secondary-button" id="cut-button" type="button" disabled>切牌</button>
+        <button class="secondary-button" id="merge-deck-button" type="button" disabled>合牌</button>
         <button class="text-button" id="ritual-back" type="button">返回牌阵</button>
       </div>
+      <div class="ritual-utility"><button class="text-button" id="ritual-skip" type="button">跳过动画</button></div>
       <button class="primary-button wide-button" id="to-draw-button" type="button" disabled>完成仪式，开始抽牌 <span aria-hidden="true">→</span></button>
     </section>
 
@@ -177,22 +194,30 @@
       </div>
 
       <div class="draw-toolbar">
-        <button class="deck-pile" id="draw-deck" type="button" aria-label="点击牌堆抽取下一张">
-          <span class="pile-card p1"></span>
-          <span class="pile-card p2"></span>
-          <span class="pile-card p3">
-            <b>✦</b>
-            <small id="deck-remaining">78</small>
-          </span>
-        </button>
         <div class="draw-copy">
-          <b id="draw-action-title">点击牌堆或下方按钮</b>
-          <p id="draw-action-copy">每次抽取都会从完整牌组中移除该牌，本次占卜不会重复。</p>
+          <b id="draw-action-title">从扇形牌阵中凭直觉选择</b>
+          <p id="draw-action-copy">牌背朝上，点击或轻触任意一张牌；抽走的牌不会再次出现。</p>
         </div>
-        <button class="primary-button" id="draw-next" type="button">抽取下一张</button>
+        <button class="text-button" id="draw-skip" type="button">跳过动画</button>
       </div>
 
-      <div class="draw-grid" id="draw-grid" aria-live="polite"></div>
+      <div class="fan-area" id="fan-area" hidden>
+        <div class="fan-heading">
+          <span>扇形牌阵 · 凭直觉选择</span>
+          <small>剩余 <b id="deck-remaining">78</b> 张</small>
+        </div>
+        <div class="fan-zone" id="fan-zone">
+          <div class="fan-deck" id="fan-deck"></div>
+        </div>
+      </div>
+
+      <div class="slot-stage">
+        <div class="slot-heading">
+          <span>牌位槽</span>
+          <small id="slot-progress">已入场 0 / 1</small>
+        </div>
+        <div class="draw-grid" id="draw-grid" aria-live="polite"></div>
+      </div>
 
       <div class="draw-finish" id="draw-finish" hidden>
         <p>牌已抽取完成。翻牌时请先留意你的第一感受。</p>
