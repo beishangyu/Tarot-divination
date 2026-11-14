@@ -210,6 +210,7 @@
   };
 
   const STORAGE_KEY = "stella-tarot-history-v1";
+  const HISTORY_LIMIT = 50;
   const RECORD_TYPES = {
     tarot: { label: "塔罗", icon: "✦", className: "record-tarot" },
     liuren: { label: "小六壬", icon: "掌", className: "record-liuren" },
@@ -1139,7 +1140,7 @@
   function getHistory() {
     try {
       const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]");
-      return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+      return Array.isArray(parsed) ? parsed.slice(0, HISTORY_LIMIT) : [];
     } catch (error) {
       return [];
     }
@@ -1147,7 +1148,7 @@
 
   function saveHistory(records) {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, 10)));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, HISTORY_LIMIT)));
       return true;
     } catch (error) {
       showToast("浏览器暂时无法保存记录。");
@@ -1194,7 +1195,7 @@
       type: normalizeRecordType(record),
       createdAt: record.createdAt || new Date().toISOString()
     });
-    const history = [normalizedRecord].concat(getHistory()).slice(0, 10);
+    const history = [normalizedRecord].concat(getHistory()).slice(0, HISTORY_LIMIT);
     if (!saveHistory(history)) {
       return false;
     }
@@ -1549,9 +1550,9 @@
     showView("welcome");
 
     if (allCards.length !== 78) {
-      elements.welcomeNote = document.querySelector(".welcome-note");
-      if (elements.welcomeNote) {
-        elements.welcomeNote.textContent = "牌库载入不完整，请刷新页面后重试。";
+      const welcomeNote = document.querySelector(".welcome-note");
+      if (welcomeNote) {
+        welcomeNote.textContent = "牌库载入不完整，请刷新页面后重试。";
       }
     }
   }

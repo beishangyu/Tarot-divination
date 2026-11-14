@@ -60,6 +60,12 @@
     return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
+  function playSound(name) {
+    if (window.AudioKit) {
+      window.AudioKit.play(name);
+    }
+  }
+
   function currentIso() {
     return new Date().toISOString();
   }
@@ -117,109 +123,55 @@
     return data.types[state.type] ? data.types[state.type].label : "综合";
   }
 
-  function renderShell() {
-    view.innerHTML = [
-      '<div class="section-heading">',
-      '<p class="eyebrow">XIAO LIU REN · 六宫占课</p>',
-      "<h2>小六壬占课</h2>",
-      "<p>从提问、选择起课方式，到查看每一步落宫计算和最终三宫解读。</p>",
-      "</div>",
-      '<nav class="mini-stepper" id="liuren2-stepper" aria-label="小六壬进度">',
-      '<div class="mini-step is-active" data-step="question"><span>1</span><b>提问</b></div>',
-      '<div class="mini-step" data-step="method"><span>2</span><b>方式</b></div>',
-      '<div class="mini-step" data-step="calculate"><span>3</span><b>计算</b></div>',
-      '<div class="mini-step" data-step="result"><span>4</span><b>解课</b></div>',
-      "</nav>",
-      '<div class="extra-step" id="liuren2-step-question">',
-      '<div class="form-block">',
-      '<label for="liuren2-question">你想占问的事情</label>',
-      '<textarea id="liuren2-question" rows="4" maxlength="160" placeholder="例如：这次工作变动是否值得推进？"></textarea>',
-      '<div class="field-meta"><span class="field-error" id="liuren2-question-error" role="alert"></span>',
-      '<span><b id="liuren2-question-count">0</b>/160</span></div>',
-      "</div>",
-      '<fieldset class="choice-group"><legend>占问类型</legend><div class="choice-grid extra-choice-grid" id="liuren2-types"></div></fieldset>',
-      '<div class="example-block"><div class="subheading"><h3>示例问题</h3><span>点击即可填入</span></div><div class="example-list" id="liuren2-examples"></div></div>',
-      '<p class="method-hint">小六壬为传统民俗简化方法，仅供文化体验与自我反思。</p>',
-      '<div class="view-actions"><button class="text-button" type="button" data-home-module>返回首页</button><button class="primary-button" id="liuren2-question-next" type="button">选择起课方式 <span aria-hidden="true">→</span></button></div>',
-      "</div>",
-      '<div class="extra-step" id="liuren2-step-method" hidden>',
-      '<div class="cast-intro"><div><p class="eyebrow">STEP 02 · 选择起课方式</p><h3>时间起课或报数起课</h3><p>确定方式后先计算宫位，再单独查看三宫解读。</p></div></div>',
-      '<div class="liuren-method-grid" id="liuren2-method-grid">',
-      '<button class="liuren-method-card" type="button" data-liuren2-method="time" aria-pressed="false"><span aria-hidden="true">时</span><b>时间起课</b><small>手动确认农历月、农历日和时辰</small></button>',
-      '<button class="liuren-method-card" type="button" data-liuren2-method="number" aria-pressed="false"><span aria-hidden="true">数</span><b>报数起课</b><small>输入三个正整数，分别从大安开始顺数</small></button>',
-      "</div>",
-      '<div class="method-panel" id="liuren2-time-panel" hidden>',
-      '<div class="traditional-warning"><b>农历日期为简化换算，请手动确认。</b><p>页面内置的是简化参考值，不代表精密万年历。使用当前时间时，必须由你检查并确认后才参与计算。</p></div>',
-      '<div class="liuren-input-grid">',
-      '<label><span>农历月</span><input id="liuren2-lunar-month" type="number" min="1" max="12" inputmode="numeric" value="1"></label>',
-      '<label><span>农历日</span><input id="liuren2-lunar-day" type="number" min="1" max="30" inputmode="numeric" value="1"></label>',
-      '<label><span>时辰</span><select id="liuren2-hour">' + hourOptions.map(function (option) {
-        return '<option value="' + option.index + '">' + escapeHtml(option.label) + "</option>";
-      }).join("") + "</select></label>",
-      "</div>",
-      '<div class="lunar-confirm-row"><button class="secondary-button" id="liuren2-current-time" type="button">使用当前时间简化值</button>',
-      '<label class="confirm-check"><input id="liuren2-lunar-confirm" type="checkbox"><span>我已手动确认以上农历月、日和时辰</span></label></div>',
-      '<p class="method-hint" id="liuren2-time-hint" aria-live="polite">请先填写并确认农历日期。</p>',
-      "</div>",
-      '<div class="method-panel" id="liuren2-number-panel" hidden>',
-      '<div class="liuren-input-grid three-numbers">',
-      '<label><span>第一数 · 起因</span><input id="liuren2-number-one" type="number" min="1" step="1" inputmode="numeric" placeholder="例如 8"></label>',
-      '<label><span>第二数 · 过程</span><input id="liuren2-number-two" type="number" min="1" step="1" inputmode="numeric" placeholder="例如 17"></label>',
-      '<label><span>第三数 · 结果</span><input id="liuren2-number-three" type="number" min="1" step="1" inputmode="numeric" placeholder="例如 26"></label>',
-      "</div>",
-      '<p class="method-hint" id="liuren2-number-hint" aria-live="polite">第一数从大安起顺数；第二数从第一宫继续顺数；第三数从第二宫继续顺数。</p>',
-      "</div>",
-      '<div class="cast-actions"><button class="text-button" id="liuren2-method-back" type="button">返回修改问题</button><button class="primary-button" id="liuren2-calculate" type="button" disabled>开始计算 <span aria-hidden="true">→</span></button></div>',
-      "</div>",
-      '<div class="extra-step" id="liuren2-step-calculate" hidden>',
-      '<div class="cast-intro"><div><p class="eyebrow">STEP 03 · 起课计算</p><h3 id="liuren2-calculate-title">逐宫计算</h3><p id="liuren2-calculate-status" aria-live="polite">每一步都会展示起始宫、顺数值、计算公式和落宫。</p></div><button class="text-button" id="liuren2-skip" type="button">跳过动画</button></div>',
-      '<div class="liuren-board"><div class="liuren-wheel" id="liuren2-wheel" aria-hidden="true"><span class="liuren-wheel-center">六<br>宫</span></div><div class="liuren-path" id="liuren2-path" aria-label="起课路径"></div></div>',
-      '<div class="liuren-calculation-detail" id="liuren2-calculation-detail" aria-live="polite"></div>',
-      '<div class="cast-actions"><button class="text-button" id="liuren2-calculate-back" type="button">返回修改方式</button><button class="primary-button" id="liuren2-result-button" type="button" disabled>查看三宫解读 <span aria-hidden="true">→</span></button></div>',
-      "</div>",
-      '<div class="extra-step" id="liuren2-step-result" hidden><div id="liuren2-result"></div><div class="result-actions"><button class="secondary-button" id="liuren2-copy" type="button">复制解读文本</button><button class="secondary-button" id="liuren2-save" type="button">保存本次记录</button><button class="primary-button" id="liuren2-restart" type="button">重新起课</button></div></div>'
-    ].join("");
+  function renderHourOptions() {
+    if (!elements.hour) {
+      return;
+    }
+    elements.hour.innerHTML = hourOptions.map(function (option) {
+      return '<option value="' + option.index + '">' + escapeHtml(option.label) + "</option>";
+    }).join("");
+    elements.hour.value = String(state.time.hourIndex);
   }
 
   function collectElements() {
-    elements.stepper = document.getElementById("liuren2-stepper");
-    elements.question = document.getElementById("liuren2-question");
-    elements.questionCount = document.getElementById("liuren2-question-count");
-    elements.questionError = document.getElementById("liuren2-question-error");
-    elements.types = document.getElementById("liuren2-types");
-    elements.examples = document.getElementById("liuren2-examples");
-    elements.questionNext = document.getElementById("liuren2-question-next");
-    elements.stepQuestion = document.getElementById("liuren2-step-question");
-    elements.stepMethod = document.getElementById("liuren2-step-method");
-    elements.stepCalculate = document.getElementById("liuren2-step-calculate");
-    elements.stepResult = document.getElementById("liuren2-step-result");
-    elements.methodGrid = document.getElementById("liuren2-method-grid");
-    elements.timePanel = document.getElementById("liuren2-time-panel");
-    elements.numberPanel = document.getElementById("liuren2-number-panel");
-    elements.lunarMonth = document.getElementById("liuren2-lunar-month");
-    elements.lunarDay = document.getElementById("liuren2-lunar-day");
-    elements.hour = document.getElementById("liuren2-hour");
-    elements.lunarConfirm = document.getElementById("liuren2-lunar-confirm");
-    elements.currentTime = document.getElementById("liuren2-current-time");
-    elements.timeHint = document.getElementById("liuren2-time-hint");
-    elements.numberOne = document.getElementById("liuren2-number-one");
-    elements.numberTwo = document.getElementById("liuren2-number-two");
-    elements.numberThree = document.getElementById("liuren2-number-three");
-    elements.numberHint = document.getElementById("liuren2-number-hint");
-    elements.methodBack = document.getElementById("liuren2-method-back");
-    elements.calculate = document.getElementById("liuren2-calculate");
-    elements.calculateTitle = document.getElementById("liuren2-calculate-title");
-    elements.calculateStatus = document.getElementById("liuren2-calculate-status");
-    elements.wheel = document.getElementById("liuren2-wheel");
-    elements.path = document.getElementById("liuren2-path");
-    elements.calculationDetail = document.getElementById("liuren2-calculation-detail");
-    elements.skip = document.getElementById("liuren2-skip");
-    elements.calculateBack = document.getElementById("liuren2-calculate-back");
-    elements.resultButton = document.getElementById("liuren2-result-button");
-    elements.result = document.getElementById("liuren2-result");
-    elements.copy = document.getElementById("liuren2-copy");
-    elements.save = document.getElementById("liuren2-save");
-    elements.restart = document.getElementById("liuren2-restart");
+    elements.stepper = document.getElementById("liuren-stepper");
+    elements.question = document.getElementById("liuren-question");
+    elements.questionCount = document.getElementById("liuren-question-count");
+    elements.questionError = document.getElementById("liuren-question-error");
+    elements.types = document.getElementById("liuren-types");
+    elements.examples = document.getElementById("liuren-examples");
+    elements.questionNext = document.getElementById("liuren-question-next");
+    elements.stepQuestion = document.getElementById("liuren-step-question");
+    elements.stepMethod = document.getElementById("liuren-step-method");
+    elements.stepCalculate = document.getElementById("liuren-step-calculate");
+    elements.stepResult = document.getElementById("liuren-step-result");
+    elements.methodGrid = document.getElementById("liuren-method-grid");
+    elements.timePanel = document.getElementById("liuren-time-panel");
+    elements.numberPanel = document.getElementById("liuren-number-panel");
+    elements.lunarMonth = document.getElementById("liuren-lunar-month");
+    elements.lunarDay = document.getElementById("liuren-lunar-day");
+    elements.hour = document.getElementById("liuren-hour");
+    elements.lunarConfirm = document.getElementById("liuren-lunar-confirm");
+    elements.currentTime = document.getElementById("liuren-current-time");
+    elements.timeHint = document.getElementById("liuren-time-hint");
+    elements.numberOne = document.getElementById("liuren-number-one");
+    elements.numberTwo = document.getElementById("liuren-number-two");
+    elements.numberThree = document.getElementById("liuren-number-three");
+    elements.numberHint = document.getElementById("liuren-number-hint");
+    elements.methodBack = document.getElementById("liuren-method-back");
+    elements.calculate = document.getElementById("liuren-calculate");
+    elements.calculateTitle = document.getElementById("liuren-calculate-title");
+    elements.calculateStatus = document.getElementById("liuren-calculate-status");
+    elements.wheel = document.getElementById("liuren-wheel");
+    elements.path = document.getElementById("liuren-path");
+    elements.calculationDetail = document.getElementById("liuren-calculation-detail");
+    elements.skip = document.getElementById("liuren-skip");
+    elements.calculateBack = document.getElementById("liuren-calculate-back");
+    elements.resultButton = document.getElementById("liuren-result-button");
+    elements.result = document.getElementById("liuren-result");
+    elements.copy = document.getElementById("liuren-copy");
+    elements.save = document.getElementById("liuren-save");
+    elements.restart = document.getElementById("liuren-restart");
   }
 
   function setStep(stepName) {
@@ -245,7 +197,7 @@
       const selected = key === state.type;
       return [
         '<button class="choice-option' + (selected ? " is-selected" : "") + '" type="button"',
-        ' data-liuren2-type="' + key + '" aria-pressed="' + (selected ? "true" : "false") + '">',
+        ' data-liuren-type="' + key + '" aria-pressed="' + (selected ? "true" : "false") + '">',
         '<span aria-hidden="true">' + type.icon + "</span><b>" + escapeHtml(type.label) + "</b>",
         "</button>"
       ].join("");
@@ -255,14 +207,14 @@
   function renderExamples() {
     const examples = data.examples[state.type] || data.examples.general;
     elements.examples.innerHTML = examples.map(function (question) {
-      return '<button class="example-chip" type="button" data-liuren2-example="' +
+      return '<button class="example-chip" type="button" data-liuren-example="' +
         escapeHtml(question) + '">' + escapeHtml(question) + "</button>";
     }).join("");
   }
 
   function renderMethodSelection() {
-    elements.methodGrid.querySelectorAll("[data-liuren2-method]").forEach(function (button) {
-      const selected = button.dataset.liuren2Method === state.method;
+    elements.methodGrid.querySelectorAll("[data-liuren-method]").forEach(function (button) {
+      const selected = button.dataset.liurenMethod === state.method;
       button.classList.toggle("is-selected", selected);
       button.setAttribute("aria-pressed", selected ? "true" : "false");
     });
@@ -471,7 +423,7 @@
       const angle = -Math.PI / 2 + index * Math.PI / 3;
       const node = document.createElement("div");
       node.className = "palace-node";
-      node.dataset.liuren2Palace = String(index);
+      node.dataset.liurenPalace = String(index);
       node.style.left = (50 + Math.cos(angle) * 36) + "%";
       node.style.top = (50 + Math.sin(angle) * 36) + "%";
       node.innerHTML = "<b>" + escapeHtml(palace.name) + "</b><small>" +
@@ -482,7 +434,7 @@
     if (state.calculation) {
       const visited = new Set(state.calculation.indices);
       elements.wheel.querySelectorAll(".palace-node").forEach(function (node) {
-        const index = Number(node.dataset.liuren2Palace);
+        const index = Number(node.dataset.liurenPalace);
         node.classList.toggle("is-visited", visited.has(index));
         node.classList.toggle("is-current", index === activeIndex);
       });
@@ -545,6 +497,7 @@
         if (step) {
           step.classList.add("is-revealed");
         }
+        playSound("palace");
       }, index * 180);
     });
     state.revealTimers.push(window.setTimeout(revealCalculation, state.calculation.steps.length * 180));
@@ -579,6 +532,7 @@
     state.saved = false;
     elements.calculateTitle.textContent = state.calculation.methodLabel + "计算过程";
     elements.calculateStatus.textContent = "正在展示三步落宫计算。";
+    playSound("wheel");
     renderCalculation();
     setStep("calculate");
   }
@@ -857,21 +811,21 @@
     });
 
     elements.types.addEventListener("click", function (event) {
-      const button = event.target.closest("[data-liuren2-type]");
+      const button = event.target.closest("[data-liuren-type]");
       if (!button) {
         return;
       }
-      state.type = button.dataset.liuren2Type;
+      state.type = button.dataset.liurenType;
       renderTypes();
       renderExamples();
     });
 
     elements.examples.addEventListener("click", function (event) {
-      const button = event.target.closest("[data-liuren2-example]");
+      const button = event.target.closest("[data-liuren-example]");
       if (!button) {
         return;
       }
-      elements.question.value = button.dataset.liuren2Example;
+      elements.question.value = button.dataset.liurenExample;
       setText(elements.questionCount, String(elements.question.value.length));
       elements.question.focus();
     });
@@ -879,9 +833,9 @@
     elements.questionNext.addEventListener("click", startMethodStep);
 
     elements.methodGrid.addEventListener("click", function (event) {
-      const button = event.target.closest("[data-liuren2-method]");
+      const button = event.target.closest("[data-liuren-method]");
       if (button) {
-        selectMethod(button.dataset.liuren2Method);
+        selectMethod(button.dataset.liurenMethod);
       }
     });
 
@@ -951,8 +905,8 @@
   }
 
   function init() {
-    renderShell();
     collectElements();
+    renderHourOptions();
     renderTypes();
     renderExamples();
     renderWheel(-1);

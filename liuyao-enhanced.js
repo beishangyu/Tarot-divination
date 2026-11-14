@@ -4,19 +4,30 @@
 
   const tarotApi = window.TarotApp;
   const data = window.LIUYAO_DATA;
+  const chart = window.LIUYAO_CHART;
   const view = document.getElementById("view-liuyao");
   const previousExtra = window.ExtraDivination;
   const previousHistoryRenderer = previousExtra && previousExtra.renderHistoryDetail;
 
-  if (!tarotApi || !data || !view) {
+  if (!tarotApi || !data || !view || !chart) {
     return;
   }
 
   const escapeHtml = tarotApi.escapeHtml;
   const lineNames = data.lineNames;
+  let palaceTable = null;
+
+  function getPalaceTable() {
+    if (!palaceTable) {
+      palaceTable = chart.buildPalaceTable(data.trigrams);
+    }
+    return palaceTable;
+  }
+
   const state = {
     question: "",
     type: "general",
+    castDate: "",
     lines: [],
     pending: null,
     busy: false,
@@ -39,6 +50,12 @@
     return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
+  function playSound(name) {
+    if (window.AudioKit) {
+      window.AudioKit.play(name);
+    }
+  }
+
   function currentIso() {
     return new Date().toISOString();
   }
@@ -59,74 +76,34 @@
     return actions[state.type] || actions.general;
   }
 
-  function renderShell() {
-    view.innerHTML = [
-      '<div class="section-heading">',
-      '<p class="eyebrow">LIU YAO · 三枚铜钱</p>',
-      "<h2>六爻起卦</h2>",
-      "<p>从初爻到上爻依次摇动六次，再观察本卦、动爻、变卦和问题方向的简读。</p>",
-      "</div>",
-      '<nav class="mini-stepper" id="liuyao2-stepper" aria-label="六爻进度">',
-      '<div class="mini-step is-active" data-step="question"><span>1</span><b>提问</b></div>',
-      '<div class="mini-step" data-step="cast"><span>2</span><b>摇卦</b></div>',
-      '<div class="mini-step" data-step="result"><span>3</span><b>解卦</b></div>',
-      "</nav>",
-      '<div class="extra-step" id="liuyao2-step-question">',
-      '<div class="form-block">',
-      '<label for="liuyao2-question">你想占问的事情</label>',
-      '<textarea id="liuyao2-question" rows="4" maxlength="160" placeholder="例如：面对接下来的项目，我最应该关注什么？"></textarea>',
-      '<div class="field-meta"><span class="field-error" id="liuyao2-question-error" role="alert"></span>',
-      '<span><b id="liuyao2-question-count">0</b>/160</span></div>',
-      "</div>",
-      '<fieldset class="choice-group"><legend>占问类型</legend><div class="choice-grid extra-choice-grid" id="liuyao2-types"></div></fieldset>',
-      '<div class="example-block"><div class="subheading"><h3>示例问题</h3><span>点击即可填入</span></div><div class="example-list" id="liuyao2-examples"></div></div>',
-      '<p class="liuyao-disclaimer">六爻排盘为简化版，未完整实现专业纳甲、六亲、六神、神煞体系；仅供娱乐与自我反思。</p>',
-      '<div class="view-actions"><button class="text-button" type="button" data-home-module>返回首页</button><button class="primary-button" id="liuyao2-question-next" type="button">进入摇卦 <span aria-hidden="true">→</span></button></div>',
-      "</div>",
-      '<div class="extra-step" id="liuyao2-step-cast" hidden>',
-      '<div class="cast-intro"><div><p class="eyebrow">STEP 02 · 六次成卦</p><h3 id="liuyao2-cast-title">摇第一爻</h3><p id="liuyao2-cast-status" aria-live="polite">每次模拟三枚铜钱正反，从初爻依次向上生成六爻。</p></div><button class="text-button" id="liuyao2-skip" type="button">跳过动画</button></div>',
-      '<div class="liuyao-rule-panel">',
-      '<div class="coin-rule"><b>三背</b><div><strong>老阳 · 动爻</strong><span>阳爻变化为阴爻</span></div></div>',
-      '<div class="coin-rule"><b>三字</b><div><strong>老阴 · 动爻</strong><span>阴爻变化为阳爻</span></div></div>',
-      '<div class="coin-rule"><b>两背一字</b><div><strong>少阳 · 静爻</strong><span>保持为阳爻</span></div></div>',
-      '<div class="coin-rule"><b>两字一背</b><div><strong>少阴 · 静爻</strong><span>保持为阴爻</span></div></div>',
-      "</div>",
-      '<div class="liuyao-cast-summary"><div><h3>铜钱落爻</h3><p id="liuyao2-cast-summary">尚未摇卦</p></div><div class="liuyao-count-large"><span id="liuyao2-count">0</span><small> / 6 爻</small></div></div>',
-      '<div class="coin-stage" id="liuyao2-coin-stage" aria-hidden="true"><span class="coin coin-1">背</span><span class="coin coin-2">字</span><span class="coin coin-3">背</span></div>',
-      '<div class="liuyao-cast-layout"><div class="hexagram-stack" id="liuyao2-stack" aria-label="六爻从下到上排列"></div><div class="cast-copy"><div class="coin-result-list" id="liuyao2-coin-results"></div></div></div>',
-      '<div class="cast-actions"><button class="text-button" id="liuyao2-cast-back" type="button">返回修改问题</button><button class="primary-button" id="liuyao2-cast-button" type="button">摇第一爻</button><button class="secondary-button" id="liuyao2-auto" type="button">自动摇完六爻</button><button class="primary-button" id="liuyao2-result-button" type="button" disabled>查看解卦结果 <span aria-hidden="true">→</span></button></div>',
-      "</div>",
-      '<div class="extra-step" id="liuyao2-step-result" hidden><div id="liuyao2-result"></div><div class="result-actions"><button class="secondary-button" id="liuyao2-copy" type="button">复制解读文本</button><button class="secondary-button" id="liuyao2-save" type="button">保存本次记录</button><button class="primary-button" id="liuyao2-restart" type="button">重新起卦</button></div></div>'
-    ].join("");
-  }
-
   function collectElements() {
-    elements.stepper = document.getElementById("liuyao2-stepper");
-    elements.question = document.getElementById("liuyao2-question");
-    elements.questionCount = document.getElementById("liuyao2-question-count");
-    elements.questionError = document.getElementById("liuyao2-question-error");
-    elements.types = document.getElementById("liuyao2-types");
-    elements.examples = document.getElementById("liuyao2-examples");
-    elements.questionNext = document.getElementById("liuyao2-question-next");
-    elements.stepQuestion = document.getElementById("liuyao2-step-question");
-    elements.stepCast = document.getElementById("liuyao2-step-cast");
-    elements.stepResult = document.getElementById("liuyao2-step-result");
-    elements.castTitle = document.getElementById("liuyao2-cast-title");
-    elements.castStatus = document.getElementById("liuyao2-cast-status");
-    elements.castSummary = document.getElementById("liuyao2-cast-summary");
-    elements.count = document.getElementById("liuyao2-count");
-    elements.coinStage = document.getElementById("liuyao2-coin-stage");
-    elements.stack = document.getElementById("liuyao2-stack");
-    elements.coinResults = document.getElementById("liuyao2-coin-results");
-    elements.castButton = document.getElementById("liuyao2-cast-button");
-    elements.auto = document.getElementById("liuyao2-auto");
-    elements.skip = document.getElementById("liuyao2-skip");
-    elements.castBack = document.getElementById("liuyao2-cast-back");
-    elements.resultButton = document.getElementById("liuyao2-result-button");
-    elements.result = document.getElementById("liuyao2-result");
-    elements.copy = document.getElementById("liuyao2-copy");
-    elements.save = document.getElementById("liuyao2-save");
-    elements.restart = document.getElementById("liuyao2-restart");
+    elements.stepper = document.getElementById("liuyao-stepper");
+    elements.question = document.getElementById("liuyao-question");
+    elements.questionCount = document.getElementById("liuyao-question-count");
+    elements.questionError = document.getElementById("liuyao-question-error");
+    elements.types = document.getElementById("liuyao-types");
+    elements.examples = document.getElementById("liuyao-examples");
+    elements.questionNext = document.getElementById("liuyao-question-next");
+    elements.castDate = document.getElementById("liuyao-cast-date");
+    elements.stepQuestion = document.getElementById("liuyao-step-question");
+    elements.stepCast = document.getElementById("liuyao-step-cast");
+    elements.stepResult = document.getElementById("liuyao-step-result");
+    elements.castTitle = document.getElementById("liuyao-cast-title");
+    elements.castStatus = document.getElementById("liuyao-cast-status");
+    elements.castSummary = document.getElementById("liuyao-cast-summary");
+    elements.count = document.getElementById("liuyao-count");
+    elements.coinStage = document.getElementById("liuyao-coin-stage");
+    elements.stack = document.getElementById("liuyao-stack");
+    elements.coinResults = document.getElementById("liuyao-coin-results");
+    elements.castButton = document.getElementById("liuyao-cast-button");
+    elements.auto = document.getElementById("liuyao-auto");
+    elements.skip = document.getElementById("liuyao-skip");
+    elements.castBack = document.getElementById("liuyao-cast-back");
+    elements.resultButton = document.getElementById("liuyao-result-button");
+    elements.result = document.getElementById("liuyao-result");
+    elements.copy = document.getElementById("liuyao-copy");
+    elements.save = document.getElementById("liuyao-save");
+    elements.restart = document.getElementById("liuyao-restart");
   }
 
   function setStep(stepName) {
@@ -149,7 +126,7 @@
       const selected = key === state.type;
       return [
         '<button class="choice-option' + (selected ? " is-selected" : "") + '" type="button"',
-        ' data-liuyao2-type="' + key + '" aria-pressed="' + (selected ? "true" : "false") + '">',
+        ' data-liuyao-type="' + key + '" aria-pressed="' + (selected ? "true" : "false") + '">',
         '<span aria-hidden="true">' + type.icon + "</span><b>" + escapeHtml(type.label) + "</b>",
         "</button>"
       ].join("");
@@ -159,7 +136,7 @@
   function renderExamples() {
     const examples = data.examples[state.type] || data.examples.general;
     elements.examples.innerHTML = examples.map(function (question) {
-      return '<button class="example-chip" type="button" data-liuyao2-example="' +
+      return '<button class="example-chip" type="button" data-liuyao-example="' +
         escapeHtml(question) + '">' + escapeHtml(question) + "</button>";
     }).join("");
   }
@@ -319,6 +296,7 @@
     const result = tossThreeCoins();
     state.pending = result;
     state.busy = true;
+    playSound("coin");
     renderCoinVisual(result);
     elements.coinStage.classList.remove("is-tossing");
     void elements.coinStage.offsetWidth;
@@ -347,6 +325,7 @@
     if (state.pending) {
       finishPending();
     }
+    playSound("coin");
     while (state.lines.length < 6) {
       const result = tossThreeCoins();
       state.lines.push({
@@ -395,6 +374,115 @@
     return '<div class="hexagram-visual' + (compact ? " compact" : "") + '">' + rows + "</div>";
   }
 
+  /* ---------- 装卦：八宫、纳甲、世应、六亲、六神 ---------- */
+
+  function buildChartFor(lines, spirits) {
+    const info = getPalaceTable()[chart.linesKey(lines)];
+    if (!info) {
+      return null;
+    }
+    const lower = trigramByLines(lines.slice(0, 3));
+    const upper = trigramByLines(lines.slice(3, 6));
+    if (!lower || !upper) {
+      return null;
+    }
+    const branches = chart.branchesFor(lower.id, upper.id);
+    const shiElement = branches[info.shiIndex].element;
+    const relatives = chart.relativesFor(branches, shiElement);
+    return {
+      palace: info.palace,
+      position: info.position,
+      shiIndex: info.shiIndex,
+      yingIndex: info.yingIndex,
+      shiElement: shiElement,
+      lines: branches.map(function (branch, index) {
+        return {
+          zhi: branch.zhi,
+          element: branch.element,
+          relative: relatives[index].relative,
+          spirit: spirits[index],
+          isShi: index === info.shiIndex,
+          isYing: index === info.yingIndex
+        };
+      })
+    };
+  }
+
+  function buildChartBundle(originalPattern, changedPattern) {
+    const day = chart.dayGanZhi(chart.parseDate(state.castDate));
+    const spirits = chart.spiritsFor(day.ganIndex);
+    return {
+      date: chart.formatDate(chart.parseDate(state.castDate)),
+      gan: day.gan,
+      zhi: day.zhi,
+      ganzhi: day.ganzhi,
+      original: buildChartFor(originalPattern, spirits),
+      changed: buildChartFor(changedPattern, spirits)
+    };
+  }
+
+  function chartRowMarkup(line, index, yang, isChanging) {
+    const mark = line.isShi ? "世" : line.isYing ? "应" : "";
+    const bars = yang ? "<span></span>" : "<span></span><span></span>";
+    return [
+      '<div class="chart-row' + (line.isShi ? " is-shi" : "") + (isChanging ? " is-changing" : "") + '">',
+      '<span class="chart-cell chart-position">' + escapeHtml(lineNames[index]) + "</span>",
+      '<span class="chart-cell chart-spirit">' + escapeHtml(line.spirit) + "</span>",
+      '<span class="chart-cell chart-relative">' + escapeHtml(line.relative) + "</span>",
+      '<span class="chart-cell chart-branch"><b>' + escapeHtml(line.zhi) + "</b><small>" +
+        escapeHtml(line.element) + "</small></span>",
+      '<span class="chart-cell chart-yao"><i class="yao-line ' + (yang ? "is-yang" : "is-yin") + '">' +
+        bars + "</i></span>",
+      '<span class="chart-cell chart-mark">' + mark + "</span>",
+      "</div>"
+    ].join("");
+  }
+
+  function chartCardMarkup(label, chartInfo, lines, changingIndexes) {
+    if (!chartInfo) {
+      return "";
+    }
+    const rows = [];
+    for (let index = 5; index >= 0; index -= 1) {
+      rows.push(chartRowMarkup(chartInfo.lines[index], index, lines[index] === 1,
+        changingIndexes.indexOf(index) > -1));
+    }
+    return [
+      '<article class="chart-card">',
+      "<header>",
+      "<b>" + escapeHtml(label) + "</b>",
+      "<span>" + escapeHtml(chartInfo.palace + " · " + chartInfo.position + "卦") + "</span>",
+      "</header>",
+      '<div class="chart-table">',
+      '<div class="chart-row chart-head"><span class="chart-cell">爻位</span>' +
+        '<span class="chart-cell">六神</span><span class="chart-cell">六亲</span>' +
+        '<span class="chart-cell">纳甲</span><span class="chart-cell">爻象</span>' +
+        '<span class="chart-cell">世应</span></div>',
+      rows.join(""),
+      "</div>",
+      '<p class="chart-note">世爻五行属' + escapeHtml(chartInfo.shiElement) +
+        "，以此为「我」定六亲；应爻在" + escapeHtml(lineNames[chartInfo.yingIndex]) + "。</p>",
+      "</article>"
+    ].join("");
+  }
+
+  function chartSectionMarkup(bundle, originalPattern, changedPattern, changingIndexes) {
+    if (!bundle) {
+      return "";
+    }
+    return [
+      '<section class="result-section">',
+      "<h4>六亲六神装卦</h4>",
+      '<p class="method-hint">起卦日 ' + escapeHtml(bundle.date) + "，" + escapeHtml(bundle.ganzhi) +
+        "日。六神以日干起，阳日顺行、阴日逆行；六亲以世爻五行为「我」；世应依京房八宫卦序。</p>",
+      '<div class="chart-pair">',
+      chartCardMarkup("本卦", bundle.original, originalPattern, changingIndexes),
+      chartCardMarkup("变卦", bundle.changed, changedPattern, []),
+      "</div>",
+      "</section>"
+    ].join("");
+  }
+
   function buildResult() {
     const originalPattern = state.lines.map(function (line) { return line.yang ? 1 : 0; });
     const changedPattern = state.lines.map(function (line) {
@@ -430,6 +518,7 @@
 
     return {
       originalKey: original.key,
+      chart: buildChartBundle(originalPattern, changedPattern),
       originalName: original.name,
       originalNumber: original.number,
       originalSymbol: original.symbol,
@@ -526,12 +615,13 @@
         result.lines.map(function (line, index) {
           return yaoRowMarkup(line, index, -1);
         }).join("") + "</div></section>",
+      chartSectionMarkup(result.chart, originalPattern, changedPattern, result.changingIndexes),
       '<section class="result-section"><h4>综合解卦</h4>' + result.summary.map(function (paragraph) {
         return "<p>" + escapeHtml(paragraph) + "</p>";
       }).join("") + "</section>",
       '<section class="result-section"><h4>六十四卦域别简读</h4><div class="domain-reading-grid">' +
         domainGridMarkup(result.originalDomainReadings) + "</div></section>",
-      '<p class="liuyao-disclaimer">六爻排盘为简化版，未完整实现专业纳甲、六亲、六神、神煞体系；仅供娱乐与自我反思。</p>'
+      '<p class="liuyao-disclaimer">六爻排盘为简化版：已含六亲、六神与世应，未实现月建日辰旺衰、用神取用与神煞体系；仅供娱乐与自我反思。</p>'
     ].join("");
 
     elements.result.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" });
@@ -622,7 +712,17 @@
       lines.push(lineNames[index] + "：" + line.coins.join(" · ") + "，" + line.name +
         (line.changing ? "，动爻" : "，静爻"));
     });
-    lines.push("", state.result.summary.join("\n\n"), "", "六爻排盘为简化版，未完整实现专业纳甲、六亲、六神、神煞体系；仅供娱乐与自我反思。");
+    if (state.result.chart && state.result.chart.original) {
+      lines.push("", "起卦日：" + state.result.chart.date + " " + state.result.chart.ganzhi + "日");
+      lines.push("本卦卦宫：" + state.result.chart.original.palace + " · " +
+        state.result.chart.original.position + "卦，世在" + lineNames[state.result.chart.original.shiIndex]);
+      state.result.chart.original.lines.forEach(function (line, index) {
+        lines.push(lineNames[index] + "：" + line.spirit + " · " + line.relative + " · " +
+          line.zhi + "（" + line.element + "）" +
+          (line.isShi ? " · 世" : line.isYing ? " · 应" : ""));
+      });
+    }
+    lines.push("", state.result.summary.join("\n\n"), "", "六爻排盘为简化版：已含六亲、六神与世应，未实现月建日辰旺衰、用神取用与神煞体系；仅供娱乐与自我反思。");
     copyText(lines.join("\n"));
   }
 
@@ -683,6 +783,8 @@
         return "<p>" + escapeHtml(paragraph) + "</p>";
       }).join("") + "</div>",
       '<div class="domain-reading-grid">' + domainGridMarkup(original.domainReadings) + "</div>",
+      result.chart ? chartSectionMarkup(result.chart, originalPattern, changedPattern,
+        result.changingIndexes || []) : "",
       "</div>"
     ].join("");
     return true;
@@ -694,20 +796,20 @@
       elements.questionError.textContent = "";
     });
     elements.types.addEventListener("click", function (event) {
-      const button = event.target.closest("[data-liuyao2-type]");
+      const button = event.target.closest("[data-liuyao-type]");
       if (!button) {
         return;
       }
-      state.type = button.dataset.liuyao2Type;
+      state.type = button.dataset.liuyaoType;
       renderTypes();
       renderExamples();
     });
     elements.examples.addEventListener("click", function (event) {
-      const button = event.target.closest("[data-liuyao2-example]");
+      const button = event.target.closest("[data-liuyao-example]");
       if (!button) {
         return;
       }
-      elements.question.value = button.dataset.liuyao2Example;
+      elements.question.value = button.dataset.liuyaoExample;
       setText(elements.questionCount, String(elements.question.value.length));
       elements.question.focus();
     });
@@ -719,6 +821,7 @@
         return;
       }
       state.question = question;
+      state.castDate = elements.castDate ? elements.castDate.value : "";
       resetFlow();
       setStep("cast");
     });
@@ -747,8 +850,11 @@
   }
 
   function init() {
-    renderShell();
     collectElements();
+    state.castDate = chart.formatDate(new Date());
+    if (elements.castDate) {
+      elements.castDate.value = state.castDate;
+    }
     renderTypes();
     renderExamples();
     resetCoinVisual();

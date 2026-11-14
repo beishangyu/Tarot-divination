@@ -7,9 +7,10 @@
   <title>星夜三占 | 塔罗 · 小六壬 · 六爻</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="tarot-physical.css">
-  <link rel="stylesheet" href="extra-divination.css">
+  <link rel="stylesheet" href="module-shell.css">
   <link rel="stylesheet" href="liuren-enhanced.css">
   <link rel="stylesheet" href="liuyao-enhanced.css">
+  <link rel="stylesheet" href="liuyao-chart.css">
 </head>
 <body>
   <div class="star-field" aria-hidden="true"></div>
@@ -253,7 +254,7 @@
       <div class="section-heading">
         <p class="eyebrow">XIAO LIU REN · 六宫占课</p>
         <h2 id="liuren-title">小六壬占课</h2>
-        <p>以问题为念，依次定月宫、日宫、时宫，再从六宫落位观察事情态势。</p>
+        <p>从提问、选择起课方式，到查看每一步落宫计算和最终三宫解读。</p>
       </div>
 
       <nav class="mini-stepper" id="liuren-stepper" aria-label="小六壬进度">
@@ -266,7 +267,7 @@
       <div class="extra-step" id="liuren-step-question">
         <div class="form-block">
           <label for="liuren-question">你想占问的事情</label>
-          <textarea id="liuren-question" rows="4" maxlength="160" placeholder="例如：我该如何理解这次工作变动的机会？"></textarea>
+          <textarea id="liuren-question" rows="4" maxlength="160" placeholder="例如：这次工作变动是否值得推进？"></textarea>
           <div class="field-meta">
             <span class="field-error" id="liuren-question-error" role="alert"></span>
             <span><b id="liuren-question-count">0</b>/160</span>
@@ -283,9 +284,10 @@
           </div>
           <div class="example-list" id="liuren-examples"></div>
         </div>
+        <p class="method-hint">小六壬为传统民俗简化方法，仅供文化体验与自我反思。</p>
         <div class="view-actions">
           <button class="text-button" type="button" data-home-module>返回首页</button>
-          <button class="primary-button" id="liuren-question-next" type="button">进入起课 <span aria-hidden="true">→</span></button>
+          <button class="primary-button" id="liuren-question-next" type="button">选择起课方式 <span aria-hidden="true">→</span></button>
         </div>
       </div>
 
@@ -293,8 +295,8 @@
         <div class="cast-intro">
           <div>
             <p class="eyebrow">STEP 02 · 选择起课方式</p>
-            <h3>选择时间起课或报数起课</h3>
-            <p>方式确定后会展示每一步落宫的完整计算过程，不会自动跳到解读。</p>
+            <h3>时间起课或报数起课</h3>
+            <p>确定方式后先计算宫位，再单独查看三宫解读。</p>
           </div>
         </div>
 
@@ -302,19 +304,19 @@
           <button class="liuren-method-card" type="button" data-liuren-method="time" aria-pressed="false">
             <span aria-hidden="true">时</span>
             <b>时间起课</b>
-            <small>手动确认农历月、农历日与时辰</small>
+            <small>手动确认农历月、农历日和时辰</small>
           </button>
           <button class="liuren-method-card" type="button" data-liuren-method="number" aria-pressed="false">
             <span aria-hidden="true">数</span>
             <b>报数起课</b>
-            <small>输入三个正整数，按六宫循环落位</small>
+            <small>输入三个正整数，分别从大安开始顺数</small>
           </button>
         </div>
 
         <div class="method-panel" id="liuren-time-panel" hidden>
           <div class="traditional-warning">
             <b>农历日期为简化换算，请手动确认。</b>
-            <p>本页面不内置精密万年历。使用当前时间时，只会提供简化参考值，必须由你确认后再参与计算。</p>
+            <p>页面内置的是简化参考值，不代表精密万年历。使用当前时间时，必须由你检查并确认后才参与计算。</p>
           </div>
           <div class="liuren-input-grid">
             <label>
@@ -360,7 +362,7 @@
 
         <div class="cast-actions">
           <button class="text-button" id="liuren-method-back" type="button">返回修改问题</button>
-          <button class="primary-button" id="liuren-calculate-button" type="button" disabled>开始计算 <span aria-hidden="true">→</span></button>
+          <button class="primary-button" id="liuren-calculate" type="button" disabled>开始计算 <span aria-hidden="true">→</span></button>
         </div>
       </div>
 
@@ -368,16 +370,14 @@
         <div class="cast-intro">
           <div>
             <p class="eyebrow">STEP 03 · 起课计算</p>
-            <h3 id="liuren-calculate-title">正在展示落宫过程</h3>
-            <p id="liuren-calculate-status" aria-live="polite">核对每一步的数字、起始宫与落宫结果。</p>
+            <h3 id="liuren-calculate-title">逐宫计算</h3>
+            <p id="liuren-calculate-status" aria-live="polite">每一步都会展示起始宫、顺数值、计算公式和落宫。</p>
           </div>
           <button class="text-button" id="liuren-skip" type="button">跳过动画</button>
         </div>
 
         <div class="liuren-board">
-          <div class="liuren-wheel" id="liuren-wheel" aria-hidden="true">
-            <span class="liuren-wheel-center">六<br>宫</span>
-          </div>
+          <div class="liuren-wheel" id="liuren-wheel" aria-hidden="true"><span class="liuren-wheel-center">六<br>宫</span></div>
           <div class="liuren-path" id="liuren-path" aria-label="起课路径"></div>
         </div>
 
@@ -403,7 +403,7 @@
       <div class="section-heading">
         <p class="eyebrow">LIU YAO · 三枚铜钱</p>
         <h2 id="liuyao-title">六爻起卦</h2>
-        <p>由下至上摇动六次，每次记录三枚铜钱的阴阳变化，再观察本卦、动爻与变卦。</p>
+        <p>从初爻到上爻依次摇动六次，再观察本卦、动爻、变卦和问题方向的简读。</p>
       </div>
 
       <nav class="mini-stepper" id="liuyao-stepper" aria-label="六爻进度">
@@ -432,6 +432,12 @@
           </div>
           <div class="example-list" id="liuyao-examples"></div>
         </div>
+        <p class="liuyao-disclaimer">六爻排盘为简化版：已含六亲、六神与世应，未实现月建日辰旺衰、用神取用与神煞体系；仅供娱乐与自我反思。</p>
+        <div class="form-block liuyao-date-block">
+          <label for="liuyao-cast-date">起卦日期</label>
+          <input id="liuyao-cast-date" type="date">
+          <p class="method-hint">用于起六神（以日干起）与记录当日干支，默认今天，可按需要调整。</p>
+        </div>
         <div class="view-actions">
           <button class="text-button" type="button" data-home-module>返回首页</button>
           <button class="primary-button" id="liuyao-question-next" type="button">进入摇卦 <span aria-hidden="true">→</span></button>
@@ -443,29 +449,44 @@
           <div>
             <p class="eyebrow">STEP 02 · 六次成卦</p>
             <h3 id="liuyao-cast-title">摇第一爻</h3>
-            <p id="liuyao-cast-status" aria-live="polite">点击摇卦，三枚铜钱会生成一条由下至上的爻线。</p>
+            <p id="liuyao-cast-status" aria-live="polite">每次模拟三枚铜钱正反，从初爻依次向上生成六爻。</p>
           </div>
           <button class="text-button" id="liuyao-skip" type="button">跳过动画</button>
         </div>
 
-        <div class="coin-stage" id="coin-stage" aria-hidden="true">
-          <span class="coin coin-1">乾</span>
-          <span class="coin coin-2">坤</span>
-          <span class="coin coin-3">易</span>
+        <div class="liuyao-rule-panel">
+          <div class="coin-rule"><b>三背</b><div><strong>老阳 · 动爻</strong><span>阳爻变化为阴爻</span></div></div>
+          <div class="coin-rule"><b>三字</b><div><strong>老阴 · 动爻</strong><span>阴爻变化为阳爻</span></div></div>
+          <div class="coin-rule"><b>两背一字</b><div><strong>少阳 · 静爻</strong><span>保持为阳爻</span></div></div>
+          <div class="coin-rule"><b>两字一背</b><div><strong>少阴 · 静爻</strong><span>保持为阴爻</span></div></div>
+        </div>
+
+        <div class="liuyao-cast-summary">
+          <div>
+            <h3>铜钱落爻</h3>
+            <p id="liuyao-cast-summary">尚未摇卦</p>
+          </div>
+          <div class="liuyao-count-large"><span id="liuyao-count">0</span><small> / 6 爻</small></div>
+        </div>
+
+        <div class="coin-stage" id="liuyao-coin-stage" aria-hidden="true">
+          <span class="coin coin-1">背</span>
+          <span class="coin coin-2">字</span>
+          <span class="coin coin-3">背</span>
         </div>
 
         <div class="liuyao-cast-layout">
-          <div class="hexagram-stack" id="liuyao-stack" aria-label="已摇出的六爻"></div>
+          <div class="hexagram-stack" id="liuyao-stack" aria-label="六爻从下到上排列"></div>
           <div class="cast-copy">
-            <div class="cast-progress"><b id="liuyao-count">0</b><span>/ 6 爻</span></div>
-            <p id="liuyao-last-result">尚未起卦</p>
+            <div class="coin-result-list" id="liuyao-coin-results"></div>
           </div>
         </div>
 
         <div class="cast-actions">
+          <button class="text-button" id="liuyao-cast-back" type="button">返回修改问题</button>
           <button class="primary-button" id="liuyao-cast-button" type="button">摇第一爻</button>
           <button class="secondary-button" id="liuyao-auto" type="button">自动摇完六爻</button>
-          <button class="text-button" id="liuyao-cast-back" type="button">返回修改问题</button>
+          <button class="primary-button" id="liuyao-result-button" type="button" disabled>查看解卦结果 <span aria-hidden="true">→</span></button>
         </div>
       </div>
 
@@ -490,7 +511,7 @@
     <div class="modal-header">
       <div>
         <p class="eyebrow">LOCAL ARCHIVE</p>
-        <h2 id="history-title">最近 10 次占卜</h2>
+        <h2 id="history-title">最近 50 次占卜</h2>
       </div>
       <button class="icon-button" id="history-close" type="button" aria-label="关闭历史记录">×</button>
     </div>
@@ -515,13 +536,13 @@
     <div id="history-detail-content"></div>
   </dialog>
 
-  <span id="liuren-enhanced-marker" hidden></span>
-  <span id="liuyao-enhanced-marker" hidden></span>
   <script src="tarot-data.js"></script>
   <script src="script.js"></script>
+  <script src="audio-kit.js"></script>
   <script src="liuren-data.js"></script>
   <script src="liuyao-data.js"></script>
-  <script src="extra-divination.js"></script>
+  <script src="liuyao-chart.js"></script>
+  <script src="module-router.js"></script>
   <script src="liuren-enhanced.js"></script>
   <script src="liuyao-enhanced.js"></script>
 </body>
