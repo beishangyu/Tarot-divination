@@ -132,20 +132,6 @@ node tools\screenshot.js liuyao   # 截取六爻结果页，输出到 tools/scre
 `browser-test.js` 会驱动真实 Chrome 依次完成塔罗洗牌抽牌、小六壬报数起课、六爻摇卦与解卦，
 并校验历史记录写入与筛选行为。
 
-## 部署到 GitHub Pages
-
-1. 把项目文件推送到 GitHub 仓库的 `main` 分支。
-2. 进入仓库的 `Settings`。
-3. 打开左侧的 `Pages`。
-4. 在 `Build and deployment` 中把 `Source` 设置为 `Deploy from a branch`。
-5. 选择 `main` 分支和 `/ (root)` 文件夹。
-6. 点击 `Save`。
-
-部署完成后，页面地址通常为：
-
-```text
-https://你的用户名.github.io/你的仓库名/
-```
 
 ## 数据与隐私
 
